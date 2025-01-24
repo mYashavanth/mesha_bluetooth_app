@@ -232,13 +232,13 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
               const Text(
                 'Paired Devices',
                 style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
                 ),
               ),
               const SizedBox(height: 16),
               SizedBox(
-                height: 210,
+                height: 250,
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: pairedDevices.length,
@@ -247,15 +247,15 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                     return Column(
                       children: [
                         ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 0,
-                            vertical: 0,
-                          ),
+                          contentPadding:
+                              EdgeInsets.zero, // Remove internal padding
+                          minVerticalPadding: 0, // Reduce vertical padding
+                          dense: true, // Make the ListTile more compact
                           leading: Text(
                             device['name']!,
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           trailing: Row(
@@ -268,7 +268,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                   color: device['status'] == 'Connected'
                                       ? Colors.green
                                       : Colors.grey.shade400,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w500,
                                 ),
                               ),
                               IconButton(
@@ -297,8 +297,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                   const Text(
                     'Pair New Device',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   TextButton.icon(
@@ -307,13 +307,19 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                     },
                     icon: Icon(
                       Icons.sync_sharp,
-                      size: 24,
+                      size: 20,
                       color: Colors.black54,
                     ),
-                    label: const Text('Scan'),
+                    label: const Text(
+                      'Scan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
                     style: TextButton.styleFrom(
                       padding: const EdgeInsets.symmetric(
-                          vertical: 0, horizontal: 20),
+                          vertical: 0, horizontal: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(20),
                       ),
@@ -325,7 +331,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
               ),
               const SizedBox(height: 16),
               SizedBox(
-                height: 210,
+                height: 190,
                 child: ListView.builder(
                   shrinkWrap: true,
                   itemCount: availableDevices.length,
@@ -334,15 +340,15 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                     return Column(
                       children: [
                         ListTile(
-                          contentPadding: const EdgeInsets.symmetric(
-                            horizontal: 0,
-                            vertical: 0,
-                          ),
+                          contentPadding:
+                              EdgeInsets.zero, // Remove internal padding
+                          minVerticalPadding: 0, // Reduce vertical padding
+                          dense: true, // Make the ListTile more compact
                           leading: Text(
                             device['name']!,
                             style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
                             ),
                           ),
                           trailing: Row(
@@ -353,7 +359,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                 style: TextStyle(
                                   fontSize: 14,
                                   color: Colors.grey.shade400,
-                                  fontWeight: FontWeight.bold,
+                                  fontWeight: FontWeight.w400,
                                 ),
                               ),
                               // IconButton(
@@ -383,8 +389,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                   const Text(
                     'Reports',
                     style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                   TextButton(
@@ -398,7 +404,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                       style: TextStyle(
                         fontSize: 16,
                         color: Colors.black54,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w400,
                       ),
                     ),
                   ),
@@ -414,7 +420,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                       child: const Text(
                         'Pending',
                         style: TextStyle(
-                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
@@ -433,8 +440,9 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                       child: const Text(
                         'Recent',
                         style: TextStyle(
+                          fontSize: 16,
                           color: Colors.black87,
-                          fontWeight: FontWeight.bold,
+                          fontWeight: FontWeight.w400,
                         ),
                       ),
                     ),
@@ -452,6 +460,10 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                   return Column(
                     children: [
                       ListTile(
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 0,
+                          vertical: 0,
+                        ),
                         leading: SvgPicture.asset(
                           'assets/svg/pdf.svg',
                           width: 40,
@@ -460,8 +472,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                         title: Text(
                           report['fileName']!,
                           style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
                           ),
                         ),
                         subtitle: Row(
@@ -472,6 +484,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                             Text(
@@ -479,6 +492,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
+                                fontWeight: FontWeight.w400,
                               ),
                             ),
                           ],
@@ -486,31 +500,37 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            IconButton(
-                              icon: Transform.rotate(
-                                angle:
-                                    pi / 2, // Rotate 90 degrees (pi/2 radians)
-                                child: const Icon(
-                                  Icons.arrow_circle_right_sharp,
-                                  color: Colors.blue,
+                            SizedBox(
+                              width: 40, // Adjust the width to reduce spacing
+                              child: IconButton(
+                                icon: Transform.rotate(
+                                  angle: pi /
+                                      2, // Rotate 90 degrees (pi/2 radians)
+                                  child: const Icon(
+                                    Icons.arrow_circle_right_sharp,
+                                    color: Colors.blue,
+                                  ),
                                 ),
+                                onPressed: () {
+                                  print("Download ${report['fileName']}");
+                                },
                               ),
-                              onPressed: () {
-                                print("Download ${report['fileName']}");
-                              },
                             ),
-                            IconButton(
-                              icon: Icon(
-                                report['status'] == 'Pending'
-                                    ? Icons.cloud_done_rounded
-                                    : Icons.cloud_off_rounded,
-                                color: report['status'] == 'Pending'
-                                    ? Colors.green
-                                    : Colors.red,
+                            SizedBox(
+                              width: 35, // Adjust the width to reduce spacing
+                              child: IconButton(
+                                icon: Icon(
+                                  report['status'] == 'Recent'
+                                      ? Icons.cloud_done_rounded
+                                      : Icons.cloud_off_rounded,
+                                  color: report['status'] == 'Recent'
+                                      ? Colors.green
+                                      : Colors.red,
+                                ),
+                                onPressed: () {
+                                  print("Upload ${report['fileName']}");
+                                },
                               ),
-                              onPressed: () {
-                                print("Upload ${report['fileName']}");
-                              },
                             ),
                           ],
                         ),

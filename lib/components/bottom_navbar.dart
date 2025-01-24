@@ -16,8 +16,9 @@ class BottomNavBar extends StatelessWidget {
         // Handle navigation based on the index
         switch (index) {
           case 0: // Home
-            Navigator.of(context)
-                .popUntil((route) => '/home' == route.settings.name);
+            // Navigator.of(context)
+            //     .popUntil((route) => '/home' == route.settings.name);
+            Navigator.pushNamed(context, '/home'); // Navigate to home
             break;
           case 1: // Reports
             Navigator.pushNamed(context, '/reports'); // Navigate to settings
@@ -57,19 +58,19 @@ class BottomNavBar extends StatelessWidget {
       // },
       items: const [
         BottomNavigationBarItem(
-          icon: Icon(Icons.home),
+          icon: Icon(Icons.home_outlined),
           label: 'Home',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.description),
+          icon: Icon(Icons.description_outlined),
           label: 'Reports',
         ),
         BottomNavigationBarItem(
-          icon: Icon(Icons.person),
+          icon: Icon(Icons.person_outline),
           label: 'Profile',
         ),
       ],
-      selectedItemColor: Colors.blue, // Color of the selected item
+      selectedItemColor: Colors.green, // Color of the selected item
       unselectedItemColor: Colors.grey, // Color of the unselected items
       showUnselectedLabels: true, // Show labels for unselected items
     );

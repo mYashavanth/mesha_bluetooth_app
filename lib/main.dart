@@ -3,6 +3,8 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/home_bluetooth.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/navigation.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/login.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/profile.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/reports.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/splash_screen.dart';
 
 void main() {
@@ -91,7 +93,7 @@ class MyApp extends StatelessWidget {
         '/navigation': (context) => const Navigation(currentIndex: 0),
         '/home': (context) => const BluetoothDeviceManager(),
         '/test': (context) => const HomeScreen(),
-        '/settings': (context) => const SettingsScreen(),
+        '/settings': (context) => const ReportsScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/splash': (context) => const SplashScreen(),
       },
@@ -147,48 +149,4 @@ class HomeScreen extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
-  @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
-}
 
-class _SettingsScreenState extends State<SettingsScreen> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Settings'),
-      ),
-      body: const Center(
-        child: Text(
-          'Settings Page',
-          style: TextStyle(fontSize: 18),
-        ),
-      ),
-    );
-  }
-}
-
-class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
-  @override
-  State<ProfileScreen> createState() => _ProfileScreenState();
-}
-
-class _ProfileScreenState extends State<ProfileScreen> {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Profile'),
-      ),
-      body: const Center(
-        child: Text(
-          'Profile Page',
-          style: TextStyle(fontSize: 18),
-        ),
-      ),
-    );
-  }
-}

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:mesha_bluetooth_data_retrieval/main.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/home_bluetooth.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/profile.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/reports.dart';
 
 class Navigation extends StatefulWidget {
   final int currentIndex;
@@ -20,7 +21,7 @@ class _NavigationState extends State<Navigation> {
   // List of pages
   final List<Widget> _pages = [
     BluetoothDeviceManager(),
-    SettingsScreen(),
+    ReportsScreen(),
     ProfileScreen(),
   ];
 

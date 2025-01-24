@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -19,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           style: TextStyle(fontSize: 18),
         ),
       ),
+      bottomNavigationBar: BottomNavBar(currentIndex: 2),
     );
   }
 }

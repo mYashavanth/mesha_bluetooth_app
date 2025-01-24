@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -19,6 +20,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           style: TextStyle(fontSize: 18),
         ),
       ),
+      bottomNavigationBar: BottomNavBar(currentIndex: 1),
     );
   }
 }

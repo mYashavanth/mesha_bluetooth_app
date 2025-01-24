@@ -35,31 +35,33 @@ class LogInContent extends StatelessWidget {
           padding: EdgeInsets.only(
             left: 16.0,
             right: 16.0,
-            top: 8.0, // Adjusted for drag handle placement
+            top: 8.0,
             bottom: MediaQuery.of(context).viewInsets.bottom + 16.0,
           ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const SizedBox(height: 4),
-              // Drag Handle
-              Container(
-                width: 80, // Increased width
-                height: 6, // Standard drag handle height
-                decoration: BoxDecoration(
-                  color: Colors.black26, // Light gray with glass effect
-                  borderRadius: BorderRadius.circular(3), // Rounded corners
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(), // Prevent overscrolling
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const SizedBox(height: 4),
+                // Drag Handle
+                Container(
+                  width: 80,
+                  height: 6,
+                  decoration: BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.circular(3),
+                  ),
                 ),
-              ),
-              const SizedBox(height: 10), // Spacing below drag handle
-              // Login Form
-              LoginForm(),
-            ],
+                const SizedBox(height: 10),
+                // Login Form
+                LoginForm(),
+              ],
+            ),
           ),
         );
       },
     );
-
   }
 
   @override
@@ -145,10 +147,9 @@ class LogInContent extends StatelessWidget {
   }
 }
 
-
-
-
 class LoginForm extends StatefulWidget {
+  const LoginForm({super.key});
+
   @override
   _LoginFormState createState() => _LoginFormState();
 }
@@ -171,7 +172,8 @@ class _LoginFormState extends State<LoginForm> {
       return 'Email cannot be empty';
     }
     // Email regex validation
-    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$').hasMatch(value)) {
+    if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
+        .hasMatch(value)) {
       return 'Please enter a valid email address';
     }
     return null;
@@ -207,7 +209,7 @@ class _LoginFormState extends State<LoginForm> {
       print('Email: ${_usernameController.text}');
       print('Password: ${_passwordController.text}');
       Navigator.pop(context);
-      Navigator.pushNamed(context, '/navigation');
+      Navigator.pushNamed(context, '/home');
     }
   }
 
@@ -305,4 +307,3 @@ class _LoginFormState extends State<LoginForm> {
     );
   }
 }
-

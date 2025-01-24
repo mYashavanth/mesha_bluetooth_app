@@ -1,6 +1,7 @@
 import 'dart:math'; // Import the math library for pi
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 
 class BluetoothDeviceManager extends StatefulWidget {
   const BluetoothDeviceManager({super.key});
@@ -198,16 +199,25 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                   ],
                 ),
               ),
-              CircleAvatar(
-                backgroundColor: Colors.green.shade300,
-                child: Text(
-                  _userName.substring(0, 2).toUpperCase(),
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
+              Container(
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle, // Ensure the border is circular
+                  border: Border.all(
+                    color: Color(0xFFDDDDDD),
+                    width: 1.0, // Border width
                   ),
                 ),
-              ),
+                child: CircleAvatar(
+                  backgroundColor: Color(0xFFECFFF6),
+                  child: Text(
+                    _userName.substring(0, 2).toUpperCase(),
+                    style: TextStyle(
+                      color: Colors.green,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              )
             ],
           ),
         ),
@@ -346,15 +356,15 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.info_outline,
-                                  color: Colors.grey.shade500,
-                                ),
-                                onPressed: () {
-                                  // Show more info or action for the device
-                                },
-                              ),
+                              // IconButton(
+                              //   icon: Icon(
+                              //     Icons.info_outline,
+                              //     color: Colors.grey.shade500,
+                              //   ),
+                              //   onPressed: () {
+                              //     // Show more info or action for the device
+                              //   },
+                              // ),
                             ],
                           ),
                           onTap: () => _pairNewDevice(index),
@@ -514,10 +524,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
           ),
         ),
       ),
-      // bottomNavigationBar: BottomNavBar(
-      //   currentIndex: widget.currentIndex,
-      //   onTap: widget.onTap,
-      // ),
+      bottomNavigationBar: BottomNavBar(currentIndex: 0),
     );
   }
 }

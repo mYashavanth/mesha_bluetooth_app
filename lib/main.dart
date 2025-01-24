@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/home_bluetooth.dart';
-import 'package:mesha_bluetooth_data_retrieval/views/navigation.dart';
+// import 'package:mesha_bluetooth_data_retrieval/views/navigation.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/login.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/profile.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/reports.dart';
@@ -90,10 +90,10 @@ class MyApp extends StatelessWidget {
       home: const SplashScreen(),
       routes: {
         '/login': (context) => const LogIn(),
-        '/navigation': (context) => const Navigation(currentIndex: 0),
+        // '/navigation': (context) => const Navigation(currentIndex: 0),
         '/home': (context) => const BluetoothDeviceManager(),
         '/test': (context) => const HomeScreen(),
-        '/settings': (context) => const ReportsScreen(),
+        '/reports': (context) => const ReportsScreen(),
         '/profile': (context) => const ProfileScreen(),
         '/splash': (context) => const SplashScreen(),
       },

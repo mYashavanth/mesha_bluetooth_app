@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -14,6 +15,94 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final String email = "john.doe@example.com";
   final String mobileNumber = "+1234567890";
   final int dataRetrieved = 300;
+
+  // Function to show the support dialog
+  void showSupportDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (context) => Dialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(10.0),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                "Need Help?",
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w500),
+              ),
+              const SizedBox(height: 16),
+              const Divider(height: 0),
+              Flexible(
+                child: SingleChildScrollView(
+                  // Ensures scrolling if needed
+                  child: Column(
+                    children: [
+                      ListTile(
+                        leading: const Icon(Icons.phone, color: Colors.green),
+                        title: const Text("Call"),
+                        subtitle: const Text(
+                          "Available 24/7",
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF848F8B)),
+                        ),
+                        onTap: () {
+                          launchUrl(Uri.parse('tel:+91 9481726689'));
+                        },
+                      ),
+                      const Divider(height: 0),
+                      ListTile(
+                        leading: const Icon(Icons.email, color: Colors.green),
+                        title: const Text("Email us about an issue"),
+                        subtitle: const Text(
+                          "8 AM-12 AM IST",
+                          style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w400,
+                              color: Color(0xFF848F8B)),
+                        ),
+                        onTap: () {
+                          launchUrl(Uri(
+                            scheme: 'mailto',
+                            path: 'yashavantham143@gmail.com',
+                            query:
+                                'subject=Support Request&body=Please help me with...\n',
+                          ));
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const Divider(height: 0),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                },
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 50),
+                  backgroundColor: Colors.transparent,
+                  side: BorderSide(color: Colors.transparent),
+                ),
+                child: const Text(
+                  "Cancel",
+                  style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -156,6 +245,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   NavigationCard(
                       onTap: () {
                         print("Profile clicked!");
+                        Navigator.pushNamed(context, '/my_profile');
                       },
                       title: 'My profile',
                       icon: Icons.person_outlined),
@@ -166,6 +256,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   NavigationCard(
                       onTap: () {
                         print("Change Password clicked!");
+                        Navigator.pushNamed(context, '/change_password');
                       },
                       title: 'Change Password',
                       icon: Icons.lock_outline),
@@ -176,6 +267,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   NavigationCard(
                       onTap: () {
                         print("Support clicked!");
+                        showSupportDialog(context);
                       },
                       title: 'Support',
                       icon: Icons.support_agent_outlined),

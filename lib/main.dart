@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/change_password.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/home_bluetooth.dart';
-// import 'package:mesha_bluetooth_data_retrieval/views/navigation.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/login.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/my_profile.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/profile.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/reports.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/splash_screen.dart';
@@ -90,12 +91,12 @@ class MyApp extends StatelessWidget {
       home: const SplashScreen(),
       routes: {
         '/login': (context) => const LogIn(),
-        // '/navigation': (context) => const Navigation(currentIndex: 0),
         '/home': (context) => const BluetoothDeviceManager(),
-        '/test': (context) => const HomeScreen(),
         '/reports': (context) => const ReportsScreen(),
         '/profile': (context) => const ProfileScreen(),
-        '/splash': (context) => const SplashScreen(),
+        '/my_profile': (context) => MyProfile(),
+        '/change_password': (context) => const ChangePasswordPage(),
+        '/test': (context) => const HomeScreen(),
       },
     );
   }
@@ -148,5 +149,3 @@ class HomeScreen extends StatelessWidget {
     );
   }
 }
-
-

@@ -331,12 +331,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ),
           ),
-          const Divider(
-            color: Color(0xFFEAEAEA),
-          ),
           IntrinsicHeight(
               child: Card(
-            margin: EdgeInsets.all(16.0),
+            margin: EdgeInsets.fromLTRB(16.0, 4.0, 16.0, 16.0),
             elevation: 0,
             color: Colors.white,
             shape: RoundedRectangleBorder(

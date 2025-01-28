@@ -2,6 +2,7 @@ import 'dart:math'; // Import the math library for pi
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 
 class BluetoothDeviceManager extends StatefulWidget {
   const BluetoothDeviceManager({super.key});
@@ -169,6 +170,72 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     });
   }
 
+  // Function to handle info icon button click
+  void _handleInfoButtonClick(int index) {
+    final device = pairedDevices[index];
+
+    if (device['status'] == 'Connected') {
+      // Navigate to the DeviceDetailsPage if the device is connected
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (context) => DeviceDetailsPage(deviceName: device['name']!),
+        ),
+      );
+    } else {
+      // Show a full-screen alert dialog if the device is not connected
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Center(
+              child: Text(
+                "Device Not Connected",
+                style: TextStyle(fontSize: 24),
+              ),
+            ),
+            content: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  "The device is not connected.",
+                  style: TextStyle(
+                    fontSize: 18,
+                    color: Colors.red,
+                    fontWeight: FontWeight.bold,
+                  ),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  "Please connect the device to view details.",
+                  style: TextStyle(fontSize: 14),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+            actions: [
+              TextButton(
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                style: TextButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
+                  backgroundColor: Colors.grey.shade300,
+                  foregroundColor: Colors.black,
+                ),
+                child: const Text("OK"),
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -276,9 +343,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                   Icons.info_outline,
                                   color: Colors.grey.shade500,
                                 ),
-                                onPressed: () {
-                                  // Show more info or action for the device
-                                },
+                                onPressed: () => _handleInfoButtonClick(index),
                               ),
                             ],
                           ),
@@ -362,15 +427,6 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
-                              // IconButton(
-                              //   icon: Icon(
-                              //     Icons.info_outline,
-                              //     color: Colors.grey.shade500,
-                              //   ),
-                              //   onPressed: () {
-                              //     // Show more info or action for the device
-                              //   },
-                              // ),
                             ],
                           ),
                           onTap: () => _pairNewDevice(index),

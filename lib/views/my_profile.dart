@@ -57,6 +57,7 @@ class _MyProfileState extends State<MyProfile> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        centerTitle: true, // Center the title horizontally
         title: const Text(
           "My Profile",
           style: TextStyle(

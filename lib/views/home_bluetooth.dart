@@ -79,6 +79,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
               style: TextStyle(fontSize: 24),
             ),
           ),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -97,43 +99,43 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                 style: TextStyle(fontSize: 14),
                 textAlign: TextAlign.center,
               ),
+              const SizedBox(height: 12), // Add spacing above the divider
+              const Divider(thickness: 0),
             ],
           ),
           actions: [
             Row(
-              mainAxisSize: MainAxisSize.min,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 24),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8.0),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8.0),
+                      ),
+                      backgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.black,
                     ),
-                    backgroundColor: Colors.grey.shade300,
-                    foregroundColor: Colors.black,
+                    child: const Text("Dismiss"),
                   ),
-                  child: const Text("Dismiss"),
                 ),
                 const SizedBox(width: 8),
-                TextButton(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                  },
-                  style: TextButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                        vertical: 10, horizontal: 24),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(8),
+                Expanded(
+                  child: TextButton(
+                    onPressed: () {
+                      Navigator.of(context).pop();
+                    },
+                    style: TextButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      backgroundColor: Colors.green.shade50,
+                      foregroundColor: Colors.green,
                     ),
-                    backgroundColor: Colors.green.shade50,
-                    foregroundColor: Colors.green,
+                    child: const Text("Action"),
                   ),
-                  child: const Text("Action"),
                 ),
               ],
             ),
@@ -473,12 +475,14 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                   IntrinsicWidth(
                     child: OutlinedButton(
                       onPressed: () => _sortReports('Pending'),
+                      style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.green)),
                       child: const Text(
                         'Pending',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.green),
                       ),
                     ),
                   ),

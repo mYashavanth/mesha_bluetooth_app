@@ -136,7 +136,21 @@ class LogInContent extends StatelessWidget {
                   onPressed: () {
                     _showLoginBottomSheet(context);
                   },
-                  child: const Text('Login'),
+                  style: TextButton.styleFrom(
+                    backgroundColor: const Color(0xFF00B562),
+                    padding: const EdgeInsets.symmetric(vertical: 16.0),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(10.0),
+                    ),
+                  ),
+                  child: const Text(
+                    'Login',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                 ),
               ),
             ],
@@ -299,7 +313,21 @@ class _LoginFormState extends State<LoginForm> {
             width: double.infinity,
             child: TextButton(
               onPressed: _handleSubmit,
-              child: const Text('Continue'),
+              style: TextButton.styleFrom(
+                backgroundColor: const Color(0xFF00B562),
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10.0),
+                ),
+              ),
+              child: const Text(
+                'Continue',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
             ),
           ),
         ],

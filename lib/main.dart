@@ -33,48 +33,6 @@ class MyApp extends StatelessWidget {
             TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
           },
         ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            textStyle: TextStyle(
-              fontSize: 20,
-            ),
-            backgroundColor: Color(0xFF00B562),
-            foregroundColor: Colors.white,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                  8.0), // Small border radius for squared corners
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          ),
-        ),
-        textButtonTheme: TextButtonThemeData(
-          style: TextButton.styleFrom(
-            textStyle: TextStyle(
-              fontSize: 20,
-            ),
-            foregroundColor: Colors.white,
-            backgroundColor: Color(0xFF00B562),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(
-                  8.0), // Small border radius for squared corners
-            ),
-            padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 24),
-          ),
-        ),
-        outlinedButtonTheme: OutlinedButtonThemeData(
-          style: OutlinedButton.styleFrom(
-            textStyle: TextStyle(
-              fontSize: 20,
-            ),
-            foregroundColor: Color(0xFF00B562),
-            backgroundColor: Colors.green.shade50,
-            side: BorderSide(color: Color(0xFF00B562)),
-            // shape: RoundedRectangleBorder(
-            //   borderRadius: BorderRadius.circular(8.0), // Small border radius for squared corners
-            // ),
-            padding: const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
-          ),
-        ),
       ),
       localizationsDelegates: const [
         GlobalMaterialLocalizations.delegate,

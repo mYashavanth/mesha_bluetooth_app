@@ -1,6 +1,6 @@
-import 'dart:math'; // Import the math library for pi
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'dart:math'; // Import the math library for pi
 
 class DeviceDetailsPage extends StatefulWidget {
   final String deviceName;
@@ -12,7 +12,7 @@ class DeviceDetailsPage extends StatefulWidget {
 }
 
 class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
-  // Dummy data for pendingReports
+  // Dummy data for pendingReports and reportsGenerated
   List<Map<String, String>> pendingReports = [
     {
       'fileName': 'Report 1',
@@ -27,6 +27,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
       'status': 'Pending'
     },
   ];
+
   List<Map<String, String>> reportsGenerated = [
     {
       'fileName': 'Report 1',
@@ -66,11 +67,181 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     },
   ];
 
+  // Variables to store selected dates and times
+  DateTime? fromDate;
+  TimeOfDay? fromTime;
+  DateTime? toDate;
+  TimeOfDay? toTime;
+
+  // Function to show the date-time picker bottom sheet
+  void _showDateTimePicker(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return Container(
+          padding: const EdgeInsets.all(16.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // From Section
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  const Text('From:',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  // Select Date Button
+                  ElevatedButton(
+                    onPressed: () async {
+                      final selectedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (selectedDate != null) {
+                        setState(() {
+                          fromDate = selectedDate;
+                        });
+                      }
+                    },
+                    child: Text(
+                      fromDate != null
+                          ? '${fromDate!.toLocal()}'.split(' ')[0]
+                          : 'Select Date',
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 10.0,
+                  ),
+                  // Select Time Button
+                  ElevatedButton(
+                    onPressed: () async {
+                      final selectedTime = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (selectedTime != null) {
+                        setState(() {
+                          fromTime = selectedTime;
+                        });
+                      }
+                    },
+                    child: Text(
+                      fromTime != null
+                          ? '${fromTime!.format(context)}'
+                          : 'Select Time',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // To Section
+
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  const Text('To:',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Spacer(),
+                  // Select Date Button
+                  ElevatedButton(
+                    onPressed: () async {
+                      final selectedDate = await showDatePicker(
+                        context: context,
+                        initialDate: DateTime.now(),
+                        firstDate: DateTime(2000),
+                        lastDate: DateTime(2100),
+                      );
+                      if (selectedDate != null) {
+                        setState(() {
+                          toDate = selectedDate;
+                        });
+                      }
+                    },
+                    child: Text(
+                      toDate != null
+                          ? '${toDate!.toLocal()}'.split(' ')[0]
+                          : 'Select Date',
+                    ),
+                  ),
+                  const SizedBox(
+                    width: 10.0,
+                  ),
+                  // Select Time Button
+                  ElevatedButton(
+                    onPressed: () async {
+                      final selectedTime = await showTimePicker(
+                        context: context,
+                        initialTime: TimeOfDay.now(),
+                      );
+                      if (selectedTime != null) {
+                        setState(() {
+                          toTime = selectedTime;
+                        });
+                      }
+                    },
+                    child: Text(
+                      toTime != null
+                          ? '${toTime!.format(context)}'
+                          : 'Select Time',
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // Download Report Button
+              ElevatedButton(
+                onPressed: () {
+                  if (fromDate != null &&
+                      fromTime != null &&
+                      toDate != null &&
+                      toTime != null) {
+                    final fromDateTime = DateTime(
+                      fromDate!.year,
+                      fromDate!.month,
+                      fromDate!.day,
+                      fromTime!.hour,
+                      fromTime!.minute,
+                    );
+                    final toDateTime = DateTime(
+                      toDate!.year,
+                      toDate!.month,
+                      toDate!.day,
+                      toTime!.hour,
+                      toTime!.minute,
+                    );
+                    print('From Date and Time: $fromDateTime');
+                    print('To Date and Time: $toDateTime');
+                    Navigator.pop(context); // Close the bottom sheet
+                  } else {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text(
+                            'Please select both From and To dates and times.'),
+                      ),
+                    );
+                  }
+                },
+                child: const Text('Download Report'),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true, // Center the title horizontally
+        centerTitle: true,
         title: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -81,12 +252,12 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                 fontWeight: FontWeight.w500,
               ),
             ),
-            const SizedBox(height: 4), // Add some spacing
+            const SizedBox(height: 4),
             const Text(
               'Device Paired',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.green, // Green color for "Device Paired"
+                color: Colors.green,
                 fontWeight: FontWeight.w500,
               ),
             ),
@@ -99,20 +270,14 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // pendingReports Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Pending Reports',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
+              // Pending Reports Section
+              const Text(
+                'Pending Reports',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w500,
+                ),
               ),
-              // List of pendingReports
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -127,7 +292,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                           vertical: 0,
                         ),
                         leading: SvgPicture.asset(
-                          'assets/svg/pdf.svg',
+                          'assets/svg/csv.svg',
                           width: 40,
                           height: 40,
                         ),
@@ -163,11 +328,10 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 40, // Adjust the width to reduce spacing
+                              width: 40,
                               child: IconButton(
                                 icon: Transform.rotate(
-                                  angle: pi /
-                                      2, // Rotate 90 degrees (pi/2 radians)
+                                  angle: pi / 2,
                                   child: const Icon(
                                     Icons.arrow_circle_right_sharp,
                                     color: Colors.blue,
@@ -179,7 +343,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                               ),
                             ),
                             SizedBox(
-                              width: 35, // Adjust the width to reduce spacing
+                              width: 35,
                               child: IconButton(
                                 icon: Icon(
                                   report['status'] == 'uploaded'
@@ -217,16 +381,15 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   ),
                   IconButton(
                     onPressed: () {
-                      print("Calendar button clicked!");
-                    }, // Use the same onPressed function
+                      _showDateTimePicker(
+                          context); // Open the date-time picker bottom sheet
+                    },
                     icon: const Icon(
-                      Icons.calendar_today_rounded, // Calendar icon
-                      size: 24, // Adjust the size of the icon
-                      color: Colors.black54, // Set the icon color
+                      Icons.calendar_today_rounded,
+                      size: 24,
+                      color: Colors.black54,
                     ),
-                    padding: EdgeInsets.zero, // Remove padding
-                    constraints: const BoxConstraints(), // Remove constraints
-                  )
+                  ),
                 ],
               ),
               const SizedBox(height: 10),
@@ -237,13 +400,15 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                     child: OutlinedButton(
                       onPressed: () => {
                         print("Reports button clicked!"),
-                      }, // Use the same onPressed function
+                      },
+                      style: OutlinedButton.styleFrom(
+                          side: BorderSide(color: Colors.green)),
                       child: const Text(
                         'Reports',
                         style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                        ),
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: Colors.green),
                       ),
                     ),
                   ),
@@ -324,11 +489,10 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             SizedBox(
-                              width: 40, // Adjust the width to reduce spacing
+                              width: 40,
                               child: IconButton(
                                 icon: Transform.rotate(
-                                  angle: pi /
-                                      2, // Rotate 90 degrees (pi/2 radians)
+                                  angle: pi / 2,
                                   child: const Icon(
                                     Icons.arrow_circle_right_sharp,
                                     color: Colors.blue,
@@ -340,7 +504,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                               ),
                             ),
                             SizedBox(
-                              width: 35, // Adjust the width to reduce spacing
+                              width: 35,
                               child: IconButton(
                                 icon: Icon(
                                   report['status'] == 'uploaded'
@@ -362,6 +526,71 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                     ],
                   );
                 },
+              ),
+            ],
+          ),
+        ),
+      ),
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            top: BorderSide(
+              color: Colors.grey.shade300,
+              width: 1.0,
+            ),
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(8.0),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                '${reportsGenerated.length} reports generated.',
+                style: const TextStyle(
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+              Text(
+                'Cloud data will be archived and deleted after 30 days.',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: const Color(0xFF848F8B),
+                ),
+              ),
+              const SizedBox(height: 8.0),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => {},
+                      style: TextButton.styleFrom(
+                        backgroundColor: Colors.grey.shade300,
+                        foregroundColor: Colors.black,
+                      ),
+                      child: const Text(
+                        'Start Test',
+                        style: TextStyle(
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 10.0),
+                  Expanded(
+                    child: TextButton(
+                      onPressed: () => {},
+                      child: const Text(
+                        'Retrieve Data',
+                        style: TextStyle(
+                          fontSize: 20.0,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

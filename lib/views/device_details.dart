@@ -78,160 +78,211 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     showModalBottomSheet(
       context: context,
       builder: (BuildContext context) {
-        return Container(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // From Section
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setState) {
+            return Container(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Text('From:',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  // Select Date Button
-                  ElevatedButton(
-                    onPressed: () async {
-                      final selectedDate = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (selectedDate != null) {
-                        setState(() {
-                          fromDate = selectedDate;
-                        });
-                      }
-                    },
-                    child: Text(
-                      fromDate != null
-                          ? '${fromDate!.toLocal()}'.split(' ')[0]
-                          : 'Select Date',
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 10.0,
-                  ),
-                  // Select Time Button
-                  ElevatedButton(
-                    onPressed: () async {
-                      final selectedTime = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (selectedTime != null) {
-                        setState(() {
-                          fromTime = selectedTime;
-                        });
-                      }
-                    },
-                    child: Text(
-                      fromTime != null
-                          ? '${fromTime!.format(context)}'
-                          : 'Select Time',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // To Section
-
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  const Text('To:',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const Spacer(),
-                  // Select Date Button
-                  ElevatedButton(
-                    onPressed: () async {
-                      final selectedDate = await showDatePicker(
-                        context: context,
-                        initialDate: DateTime.now(),
-                        firstDate: DateTime(2000),
-                        lastDate: DateTime(2100),
-                      );
-                      if (selectedDate != null) {
-                        setState(() {
-                          toDate = selectedDate;
-                        });
-                      }
-                    },
-                    child: Text(
-                      toDate != null
-                          ? '${toDate!.toLocal()}'.split(' ')[0]
-                          : 'Select Date',
-                    ),
-                  ),
-                  const SizedBox(
-                    width: 10.0,
-                  ),
-                  // Select Time Button
-                  ElevatedButton(
-                    onPressed: () async {
-                      final selectedTime = await showTimePicker(
-                        context: context,
-                        initialTime: TimeOfDay.now(),
-                      );
-                      if (selectedTime != null) {
-                        setState(() {
-                          toTime = selectedTime;
-                        });
-                      }
-                    },
-                    child: Text(
-                      toTime != null
-                          ? '${toTime!.format(context)}'
-                          : 'Select Time',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-
-              // Download Report Button
-              ElevatedButton(
-                onPressed: () {
-                  if (fromDate != null &&
-                      fromTime != null &&
-                      toDate != null &&
-                      toTime != null) {
-                    final fromDateTime = DateTime(
-                      fromDate!.year,
-                      fromDate!.month,
-                      fromDate!.day,
-                      fromTime!.hour,
-                      fromTime!.minute,
-                    );
-                    final toDateTime = DateTime(
-                      toDate!.year,
-                      toDate!.month,
-                      toDate!.day,
-                      toTime!.hour,
-                      toTime!.minute,
-                    );
-                    print('From Date and Time: $fromDateTime');
-                    print('To Date and Time: $toDateTime');
-                    Navigator.pop(context); // Close the bottom sheet
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text(
-                            'Please select both From and To dates and times.'),
+                  // From Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Text('Start time',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      // Select Date Button
+                      TextButton(
+                        onPressed: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (selectedDate != null) {
+                            setState(() {
+                              fromDate = selectedDate;
+                            });
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(100, 40),
+                          backgroundColor: Colors.grey.shade300,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                        ),
+                        child: Text(
+                          fromDate != null
+                              ? '${fromDate!.toLocal()}'.split(' ')[0]
+                              : 'Select Date',
+                        ),
                       ),
-                    );
-                  }
-                },
-                child: const Text('Download Report'),
+                      const SizedBox(
+                        width: 10.0,
+                      ),
+                      // Select Time Button
+                      TextButton(
+                        onPressed: () async {
+                          final selectedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (selectedTime != null) {
+                            setState(() {
+                              fromTime = selectedTime;
+                            });
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(100, 40),
+                          backgroundColor: Colors.grey.shade300,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                        ),
+                        child: Text(
+                          fromTime != null
+                              ? '${fromTime!.format(context)}'
+                              : 'Select Time',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // To Section
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      const Text('End time',
+                          style: TextStyle(
+                              fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Spacer(),
+                      // Select Date Button
+                      TextButton(
+                        onPressed: () async {
+                          final selectedDate = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime.now(),
+                            firstDate: DateTime(2000),
+                            lastDate: DateTime(2100),
+                          );
+                          if (selectedDate != null) {
+                            setState(() {
+                              toDate = selectedDate;
+                            });
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(100, 40),
+                          backgroundColor: Colors.grey.shade300,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                        ),
+                        child: Text(
+                          toDate != null
+                              ? '${toDate!.toLocal()}'.split(' ')[0]
+                              : 'Select Date',
+                        ),
+                      ),
+                      const SizedBox(
+                        width: 10.0,
+                      ),
+                      // Select Time Button
+                      TextButton(
+                        onPressed: () async {
+                          final selectedTime = await showTimePicker(
+                            context: context,
+                            initialTime: TimeOfDay.now(),
+                          );
+                          if (selectedTime != null) {
+                            setState(() {
+                              toTime = selectedTime;
+                            });
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          minimumSize: const Size(100, 40),
+                          backgroundColor: Colors.grey.shade300,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10.0),
+                          ),
+                        ),
+                        child: Text(
+                          toTime != null
+                              ? '${toTime!.format(context)}'
+                              : 'Select Time',
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Download Report Button
+                  SizedBox(
+                    width: double.infinity,
+                    child: TextButton(
+                      onPressed: () {
+                        if (fromDate != null &&
+                            fromTime != null &&
+                            toDate != null &&
+                            toTime != null) {
+                          final fromDateTime = DateTime(
+                            fromDate!.year,
+                            fromDate!.month,
+                            fromDate!.day,
+                            fromTime!.hour,
+                            fromTime!.minute,
+                          );
+                          final toDateTime = DateTime(
+                            toDate!.year,
+                            toDate!.month,
+                            toDate!.day,
+                            toTime!.hour,
+                            toTime!.minute,
+                          );
+                          print('From Date and Time: $fromDateTime');
+                          print('To Date and Time: $toDateTime');
+                          Navigator.pop(context); // Close the bottom sheet
+                        } else {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text(
+                                  'Please select both From and To dates and times.'),
+                            ),
+                          );
+                        }
+                      },
+                      style: TextButton.styleFrom(
+                        backgroundColor: const Color(0xFF00B562),
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                      ),
+                      child: const Text(
+                        'Download Report',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 20,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
-          ),
+            );
+          },
         );
       },
     );
@@ -567,6 +618,10 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.grey.shade300,
                         foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
                       ),
                       child: const Text(
                         'Start Test',
@@ -581,10 +636,18 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   Expanded(
                     child: TextButton(
                       onPressed: () => {},
+                      style: TextButton.styleFrom(
+                        backgroundColor: const Color(0xFF00B562),
+                        padding: const EdgeInsets.symmetric(vertical: 16.0),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10.0),
+                        ),
+                      ),
                       child: const Text(
                         'Retrieve Data',
                         style: TextStyle(
-                          fontSize: 20.0,
+                          color: Colors.white,
+                          fontSize: 20,
                           fontWeight: FontWeight.w500,
                         ),
                       ),

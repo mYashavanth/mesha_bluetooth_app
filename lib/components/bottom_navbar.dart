@@ -16,20 +16,41 @@ class BottomNavBar extends StatelessWidget {
         // Handle navigation based on the index
         switch (index) {
           case 0: // Home
-            // Navigator.of(context)
-            //     .popUntil((route) => '/home' == route.settings.name);
-            Navigator.pushNamed(context, '/home'); // Navigate to home
+            Navigator.pushReplacementNamed(
+                context, '/home'); // Replace current page with home
             break;
           case 1: // Reports
-            Navigator.pushNamed(context, '/reports'); // Navigate to settings
+            Navigator.pushReplacementNamed(
+                context, '/reports'); // Replace current page with reports
             break;
           case 2: // Profile
-            Navigator.pushNamed(context, '/profile'); // Navigate to profile
+            Navigator.pushReplacementNamed(
+                context, '/profile'); // Replace current page with profile
             break;
           default:
             break;
         }
       },
+/////////////////////////////////////////////////////////////////////////////////////
+      // onTap: (index) {
+      //   // Handle navigation based on the index
+      //   switch (index) {
+      //     case 0: // Home
+      //       // Navigator.of(context)
+      //       //     .popUntil((route) => '/home' == route.settings.name);
+      //       Navigator.pushNamed(context, '/home'); // Navigate to home
+      //       break;
+      //     case 1: // Reports
+      //       Navigator.pushNamed(context, '/reports'); // Navigate to settings
+      //       break;
+      //     case 2: // Profile
+      //       Navigator.pushNamed(context, '/profile'); // Navigate to profile
+      //       break;
+      //     default:
+      //       break;
+      //   }
+      // },
+////////////////////////////////////////////////////////////////////////////////////
       // onTap: (index) {
       //   // Handle navigation based on the index
       //   switch (index) {

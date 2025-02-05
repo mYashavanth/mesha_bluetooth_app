@@ -223,7 +223,7 @@ class _LoginFormState extends State<LoginForm> {
       print('Email: ${_usernameController.text}');
       print('Password: ${_passwordController.text}');
       Navigator.pop(context);
-      Navigator.pushNamed(context, '/home');
+      Navigator.pushReplacementNamed(context, '/home');
     }
   }
 

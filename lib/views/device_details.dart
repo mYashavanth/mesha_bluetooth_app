@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'dart:math'; // Import the math library for pi
+import 'dart:math';
+
+import 'package:mesha_bluetooth_data_retrieval/views/retrieving_data.dart'; // Import the math library for pi
 
 class DeviceDetailsPage extends StatefulWidget {
   final String deviceName;
@@ -77,14 +79,49 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   void _showDateTimePicker(BuildContext context) {
     showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
       builder: (BuildContext context) {
         return StatefulBuilder(
           builder: (BuildContext context, StateSetter setState) {
             return Container(
-              padding: const EdgeInsets.all(16.0),
+              padding: EdgeInsets.only(
+                left: 16.0,
+                right: 16.0,
+                top: 8.0,
+                bottom: 16.0,
+              ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  // Drag Handle
+                  Container(
+                    width: 80,
+                    height: 6,
+                    decoration: BoxDecoration(
+                      color: Colors.black26,
+                      borderRadius: BorderRadius.circular(3),
+                    ),
+                  ),
+                  SizedBox(
+                    height: 12.0,
+                  ),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Select date and time range',
+                        style: TextStyle(
+                            fontSize: 20, fontWeight: FontWeight.bold),
+                      ),
+                      const Text("Done"),
+                    ],
+                  ),
+                  const Divider(
+                    height: 16,
+                  ),
                   // From Section
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -154,7 +191,9 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  const Divider(
+                    height: 16,
+                  ),
 
                   // To Section
                   Row(
@@ -635,7 +674,14 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   const SizedBox(width: 10.0),
                   Expanded(
                     child: TextButton(
-                      onPressed: () => {},
+                      onPressed: () => {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const RetrievingData(),
+                          ),
+                        ),
+                      },
                       style: TextButton.styleFrom(
                         backgroundColor: const Color(0xFF00B562),
                         padding: const EdgeInsets.symmetric(vertical: 16.0),

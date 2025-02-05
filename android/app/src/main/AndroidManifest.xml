@@ -23,7 +23,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" android:maxSdkVersion="28" />
     
     <application
-        android:label="mesha_bluetooth_data_retrieval"
+        android:label="Mesha"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

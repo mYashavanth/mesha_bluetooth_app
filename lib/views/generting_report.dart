@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:mesha_bluetooth_data_retrieval/views/generting_report.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/downloading_report.dart';
 
-class UploadingData extends StatefulWidget {
-  const UploadingData({super.key});
+class GenertingReport extends StatefulWidget {
+  const GenertingReport({super.key});
 
   @override
-  State<UploadingData> createState() => _UploadingDataState();
+  State<GenertingReport> createState() => _GenertingReportState();
 }
 
-class _UploadingDataState extends State<UploadingData> {
+class _GenertingReportState extends State<GenertingReport> {
   double progress = 0.0;
   int dotCount = 1; // For animated dots
 
@@ -30,7 +30,7 @@ class _UploadingDataState extends State<UploadingData> {
           timer.cancel();
           Navigator.pushReplacement(
             context,
-            MaterialPageRoute(builder: (context) => const GenertingReport()),
+            MaterialPageRoute(builder: (context) => const DownloadingReport()),
           );
         }
       });
@@ -48,7 +48,7 @@ class _UploadingDataState extends State<UploadingData> {
 
   String generateDisplayText() {
     String dots = '.' * dotCount;
-    return "Uploading data to cloud$dots";
+    return "Generting report$dots";
   }
 
   @override
@@ -72,7 +72,9 @@ class _UploadingDataState extends State<UploadingData> {
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
-                          value: index == 0 ? 1.0 : (index == 1 ? progress : 0),
+                          value: index == 0 || index == 1
+                              ? 1.0
+                              : (index == 2 ? progress : 0),
                           minHeight: 6,
                           backgroundColor: Colors.grey[300],
                           valueColor:
@@ -112,12 +114,12 @@ class _UploadingDataState extends State<UploadingData> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    const Icon(Icons.cloud_upload_outlined,
+                    const Icon(Icons.insert_drive_file_outlined,
                         color: Colors.white, size: 30),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        "Uploading your data to the cloud...\nPlease make sure to stay connected to the internet.",
+                        "Generating report...",
                         style:
                             const TextStyle(color: Colors.white, fontSize: 18),
                         softWrap: true,

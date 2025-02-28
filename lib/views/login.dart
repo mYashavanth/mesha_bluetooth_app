@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LogIn extends StatefulWidget {
   const LogIn({super.key});
@@ -169,6 +172,7 @@ class LoginForm extends StatefulWidget {
 }
 
 class _LoginFormState extends State<LoginForm> {
+  final storage = FlutterSecureStorage();
   final _formKey = GlobalKey<FormState>();
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
@@ -218,12 +222,55 @@ class _LoginFormState extends State<LoginForm> {
     return errors;
   }
 
-  void _handleSubmit() {
-    if (_formKey.currentState!.validate()) {
-      print('Email: ${_usernameController.text}');
-      print('Password: ${_passwordController.text}');
-      Navigator.pop(context);
-      Navigator.pushReplacementNamed(context, '/home');
+  Future<void> _handleSubmit() async {
+    try {
+      if (_formKey.currentState!.validate()) {
+        final map = <String, dynamic>{};
+        map['email'] = _usernameController.text.trim();
+        map['password'] = _passwordController.text.trim();
+        final response = await http.post(
+          Uri.parse('https://bt.meshaenergy.com/apis/app-users/validate-user'),
+          body: map,
+        );
+        if (response.statusCode == 200) {
+          final responseData = jsonDecode(response.body);
+          print("Backend response: $responseData");
+
+          if (responseData['errFlag'] == 0) {
+            await storage.write(key: 'userToken', value: responseData['token']);
+            Navigator.pushNamed(context, '/home');
+          } else {
+            final errorMessage = responseData['message'];
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(errorMessage),
+                showCloseIcon: true,
+                behavior: SnackBarBehavior.floating, // Make it float on top
+              ),
+            );
+          }
+          // final tokentoprint = await storage.read(key: 'userToken');
+          // print('Token: $tokentoprint');
+        } else {
+          print("Backend error: ${response.statusCode}");
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Backend error: ${response.statusCode}'),
+              showCloseIcon: true,
+              behavior: SnackBarBehavior.floating, // Make it float on top
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error: $e'),
+          showCloseIcon: true,
+          behavior: SnackBarBehavior.floating, // Make it float on top
+        ),
+      );
     }
   }
 
@@ -246,7 +293,6 @@ class _LoginFormState extends State<LoginForm> {
               labelText: 'Email',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
-                borderSide: BorderSide(color: Colors.grey.shade300),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(8),
@@ -258,7 +304,7 @@ class _LoginFormState extends State<LoginForm> {
               ),
             ),
             validator: _validateEmail,
-            keyboardType: TextInputType.emailAddress, // Use email keyboard
+            keyboardType: TextInputType.emailAddress,
           ),
           const SizedBox(height: 16),
           TextFormField(

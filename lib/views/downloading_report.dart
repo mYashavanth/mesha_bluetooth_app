@@ -28,13 +28,13 @@ class _DownloadingReportState extends State<DownloadingReport> {
         if (progress >= 1.0) {
           progress = 1.0;
           timer.cancel();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-                builder: (context) => const DeviceDetailsPage(
-                      deviceName: "Device Name",
-                    )),
-          );
+          // Navigator.pushReplacement(
+          //   context,
+          //   MaterialPageRoute(
+          //       builder: (context) => const DeviceDetailsPage(
+          //             deviceName: "Device Name",
+          //           )),
+          // );
         }
       });
     });

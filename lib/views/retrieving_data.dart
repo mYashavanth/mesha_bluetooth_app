@@ -1,19 +1,26 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
-
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
-
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:path/path.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class RetrievingData extends StatefulWidget {
-  const RetrievingData({super.key});
+  final BluetoothDevice device;
+
+  const RetrievingData({super.key, required this.device});
 
   @override
   State<RetrievingData> createState() => _RetrievingDataState();
 }
 
 class _RetrievingDataState extends State<RetrievingData> {
+  final storage = const FlutterSecureStorage();
+  String? token;
   double progress = 0.0;
   List<dynamic> fetchedData = [];
   bool isFetching = true; // Track API fetching
@@ -47,20 +54,53 @@ class _RetrievingDataState extends State<RetrievingData> {
     });
   }
 
-  // Fetch data from API
+
   Future<void> fetchData() async {
+    final csvFilePath = await storage.read(key: 'csvFilePath');
     try {
-      final response = await http
-          .get(Uri.parse('https://jsonplaceholder.typicode.com/photos'));
+      final csvFile = File(csvFilePath!);
+      final csvBytes = await csvFile.readAsBytes();
+
+      // Get the token from FlutterSecureStorage
+      final token = await storage.read(key: 'userToken');
+
+      // Create a multipart request
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            'https://bt.meshaenergy.com/apis/app/scan-file-upload-records'),
+      );
+
+      // Add fields
+      request.fields['deviceId'] = widget.device.platformName;
+      request.fields['scannedUserInfoId'] = '1';
+      request.fields['token'] = token ?? '';
+
+      // Attach the file
+      request.files.add(http.MultipartFile.fromBytes(
+        'scannedFile',
+        csvBytes,
+        filename: basename(csvFilePath), // Extract file name
+      ));
+      print(basename(csvFilePath));
+      // Send the request
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+
+      print(responseBody);
 
       if (response.statusCode == 200) {
         setState(() {
-          fetchedData = json.decode(response.body);
-          isFetching = false; // Mark fetching as done
+          isFetching = false;
+        });
+      } else {
+        print("Failed to upload CSV: ${response.statusCode}");
+        setState(() {
+          isFetching = false;
         });
       }
     } catch (e) {
-      print("Error fetching data: $e");
+      print("Error uploading CSV: $e");
       setState(() {
         isFetching = false;
       });
@@ -69,8 +109,10 @@ class _RetrievingDataState extends State<RetrievingData> {
 
   void navigateToNextScreen() {
     Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (context) => SystemDetails(data: fetchedData)),
+      this.context,
+      MaterialPageRoute(
+        builder: (buildContext) => SystemDetails(data: fetchedData),
+      ),
     );
   }
 

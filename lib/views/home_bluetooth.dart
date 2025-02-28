@@ -4,6 +4,10 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 
+import 'dart:async';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 class BluetoothDeviceManager extends StatefulWidget {
   const BluetoothDeviceManager({super.key});
 
@@ -14,23 +18,8 @@ class BluetoothDeviceManager extends StatefulWidget {
 class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   String _userName = 'Amogh';
 
-  // Dummy data for paired devices
-  List<Map<String, String>> pairedDevices = [
-    {'name': 'Device 1', 'status': 'Connected'},
-    {'name': 'Device 2', 'status': 'Not Connected'},
-    {'name': 'Device 3', 'status': 'Not Connected'},
-    {'name': 'Device 4', 'status': 'Not Connected'},
-    {'name': 'Device 5', 'status': 'Not Connected'},
-    {'name': 'Device 6', 'status': 'Not Connected'},
-  ];
-
-  // Dummy data for available devices
-  List<Map<String, String>> availableDevices = [
-    {'name': 'New Device 1'},
-    {'name': 'New Device 2'},
-    {'name': 'New Device 3'},
-    {'name': 'New Device 4'},
-  ];
+  List<BluetoothDevice> _pairedDevices = [];
+  List<BluetoothDevice> _scannedDevices = [];
 
   // Dummy data for reports
   List<Map<String, String>> reports = [
@@ -63,9 +52,166 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   @override
   void initState() {
     super.initState();
+    _checkBluetoothStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAlertDialog();
     });
+  }
+
+  /// Check Bluetooth Status and Request Permissions
+  Future<void> _checkBluetoothStatus() async {
+    bool hasPermissions = await _requestPermissions();
+    if (!hasPermissions) return;
+
+    // Ensure Bluetooth is on
+    if (await FlutterBluePlus.adapterState.first != BluetoothAdapterState.on) {
+      print('Bluetooth is off. Asking user to enable it...');
+      await FlutterBluePlus.turnOn();
+      _waitForBluetoothOn();
+    } else {
+      _getBluetoothDevices();
+    }
+  }
+
+  /// Wait for the user to turn Bluetooth on, then start scanning
+  void _waitForBluetoothOn() {
+    FlutterBluePlus.adapterState.listen((state) {
+      if (state == BluetoothAdapterState.on) {
+        print('Bluetooth is now ON. Scanning...');
+        _getBluetoothDevices();
+      } else {
+        print('Bluetooth is still OFF. Waiting...');
+      }
+    });
+  }
+
+  /// Request Permissions for Bluetooth and Location
+  Future<bool> _requestPermissions() async {
+    var scanPermission = await Permission.bluetoothScan.request();
+    var connectPermission = await Permission.bluetoothConnect.request();
+    var locationPermission = await Permission.location.request();
+
+    if (scanPermission.isGranted &&
+        connectPermission.isGranted &&
+        locationPermission.isGranted) {
+      if (!await FlutterBluePlus.isSupported) {
+        print('Bluetooth not supported on this device');
+        return false;
+      }
+      return true;
+    } else {
+      print('Permissions not granted');
+      return false;
+    }
+  }
+
+  /// Get Paired Devices and Start Scanning for Nearby Devices
+  Future<void> _getBluetoothDevices() async {
+    setState(() {
+      _pairedDevices.clear();
+      _scannedDevices.clear();
+    });
+
+    // Get Paired Devices
+    List<BluetoothDevice> bondedDevices = await FlutterBluePlus.bondedDevices;
+    setState(() {
+      _pairedDevices = bondedDevices;
+    });
+
+    // Start Scanning for Nearby Devices
+    await _scanForDevices();
+  }
+
+  /// Scan for Nearby Devices
+  Future<void> _scanForDevices() async {
+    setState(() {
+      _scannedDevices.clear();
+    });
+
+    FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
+
+    FlutterBluePlus.scanResults.listen((results) {
+      setState(() {
+        _scannedDevices = results
+            .map((r) => r.device)
+            .where((device) =>
+                !_pairedDevices.contains(device) &&
+                device.platformName.isNotEmpty)
+            .toList();
+      });
+    });
+
+    await Future.delayed(Duration(seconds: 5)); // Ensure scan runs for 5 sec
+    FlutterBluePlus.stopScan();
+
+    print('Paired Devices: $_pairedDevices');
+    print('Scanned Devices: $_scannedDevices');
+  }
+
+  Widget _buildDeviceList({
+    required String title,
+    required List<BluetoothDevice> devices,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        title == "Scanned Devices"
+            ? Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  TextButton.icon(
+                    onPressed: () {
+                      _scanForDevices();
+                    },
+                    icon: Icon(
+                      Icons.sync_sharp,
+                      size: 20,
+                      color: Colors.black54,
+                    ),
+                    label: const Text(
+                      'Scan',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w400,
+                      ),
+                    ),
+                    style: TextButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                          vertical: 0, horizontal: 14),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      backgroundColor: Colors.grey.shade300,
+                      foregroundColor: Colors.black,
+                    ),
+                  ),
+                ],
+              )
+            : Text(
+                title,
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.w500),
+              ),
+        SizedBox(height: 16),
+        SizedBox(
+          height: devices.length * 62.0,
+          child: ListView.builder(
+            itemCount: devices.length,
+            itemBuilder: (context, index) {
+              final device = devices[index];
+              return DeviceCard(device: device);
+            },
+          ),
+        ),
+        SizedBox(height: 16),
+      ],
+    );
   }
 
   void _showAlertDialog() {
@@ -146,19 +292,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   }
 
   // Function to handle connection state change
-  void _connectDevice(int index) {
-    setState(() {
-      for (int i = 0; i < pairedDevices.length; i++) {
-        pairedDevices[i]['status'] = 'Not Connected';
-      }
-      pairedDevices[index]['status'] = 'Connected';
-    });
-  }
 
   // Function to handle new device pairing
-  void _pairNewDevice(int index) {
-    print("Pairing with ${availableDevices[index]['name']}");
-  }
 
   // Function to handle report action button click
   void _handleReportAction() {
@@ -173,70 +308,6 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   }
 
   // Function to handle info icon button click
-  void _handleInfoButtonClick(int index) {
-    final device = pairedDevices[index];
-
-    if (device['status'] == 'Connected') {
-      // Navigate to the DeviceDetailsPage if the device is connected
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (context) => DeviceDetailsPage(deviceName: device['name']!),
-        ),
-      );
-    } else {
-      // Show a full-screen alert dialog if the device is not connected
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Center(
-              child: Text(
-                "Device Not Connected",
-                style: TextStyle(fontSize: 24),
-              ),
-            ),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  "The device is not connected.",
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.red,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  "Please connect the device to view details.",
-                  style: TextStyle(fontSize: 14),
-                  textAlign: TextAlign.center,
-                ),
-              ],
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: TextButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(vertical: 10, horizontal: 24),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  backgroundColor: Colors.grey.shade300,
-                  foregroundColor: Colors.black,
-                ),
-                child: const Text("OK"),
-              ),
-            ],
-          );
-        },
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -298,147 +369,12 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
-                'Paired Devices',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 250,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: pairedDevices.length,
-                  itemBuilder: (context, index) {
-                    final device = pairedDevices[index];
-                    return Column(
-                      children: [
-                        ListTile(
-                          contentPadding:
-                              EdgeInsets.zero, // Remove internal padding
-                          minVerticalPadding: 0, // Reduce vertical padding
-                          dense: true, // Make the ListTile more compact
-                          leading: Text(
-                            device['name']!,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                device['status']!,
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: device['status'] == 'Connected'
-                                      ? Colors.green
-                                      : Colors.grey.shade400,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              IconButton(
-                                icon: Icon(
-                                  Icons.info_outline,
-                                  color: Colors.grey.shade500,
-                                ),
-                                onPressed: () => _handleInfoButtonClick(index),
-                              ),
-                            ],
-                          ),
-                          onTap: () => _connectDevice(index),
-                        ),
-                        const Divider(),
-                      ],
-                    );
-                  },
-                ),
-              ),
-              const SizedBox(height: 16),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Pair New Device',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  TextButton.icon(
-                    onPressed: () {
-                      // Implement scan functionality
-                    },
-                    icon: Icon(
-                      Icons.sync_sharp,
-                      size: 20,
-                      color: Colors.black54,
-                    ),
-                    label: const Text(
-                      'Scan',
-                      style: TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                          vertical: 0, horizontal: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      backgroundColor: Colors.grey.shade300,
-                      foregroundColor: Colors.black,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              SizedBox(
-                height: 190,
-                child: ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: availableDevices.length,
-                  itemBuilder: (context, index) {
-                    final device = availableDevices[index];
-                    return Column(
-                      children: [
-                        ListTile(
-                          contentPadding:
-                              EdgeInsets.zero, // Remove internal padding
-                          minVerticalPadding: 0, // Reduce vertical padding
-                          dense: true, // Make the ListTile more compact
-                          leading: Text(
-                            device['name']!,
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Text(
-                                'Pair',
-                                style: TextStyle(
-                                  fontSize: 14,
-                                  color: Colors.grey.shade400,
-                                  fontWeight: FontWeight.w400,
-                                ),
-                              ),
-                            ],
-                          ),
-                          onTap: () => _pairNewDevice(index),
-                        ),
-                        const Divider(),
-                      ],
-                    );
-                  },
-                ),
-              ),
+              _buildDeviceList(
+                  title: "Paired Devices", devices: _pairedDevices),
+              SizedBox(height: 24),
+              _buildDeviceList(
+                  title: "Scanned Devices", devices: _scannedDevices),
+
               const SizedBox(height: 14),
               // Reports Section
               Row(
@@ -606,5 +542,146 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
       ),
       bottomNavigationBar: BottomNavBar(currentIndex: 0),
     );
+  }
+}
+
+class DeviceCard extends StatefulWidget {
+  final BluetoothDevice device;
+
+  const DeviceCard({
+    Key? key,
+    required this.device,
+  }) : super(key: key);
+
+  @override
+  _DeviceCardState createState() => _DeviceCardState();
+}
+
+class _DeviceCardState extends State<DeviceCard> {
+  bool _isConnected = false;
+  bool _isConnecting = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfConnected();
+  }
+
+  /// Check if the device is already connected
+  Future<void> _checkIfConnected() async {
+    final isConnected = await widget.device.isConnected;
+    setState(() {
+      _isConnected = isConnected;
+    });
+  }
+
+  /// Connect to the device
+  Future<void> _connectDevice() async {
+    setState(() {
+      _isConnecting = true;
+    });
+
+    try {
+      await widget.device.connect();
+      setState(() {
+        _isConnected = true;
+        _isConnecting = false;
+      });
+    } catch (e) {
+      print("Failed to connect: $e");
+      setState(() {
+        _isConnecting = false;
+      });
+    }
+  }
+
+  /// Disconnect from the device
+  Future<void> _disconnectDevice() async {
+    setState(() {
+      _isConnecting = true;
+    });
+
+    try {
+      await widget.device.disconnect();
+      setState(() {
+        _isConnected = false;
+        _isConnecting = false;
+      });
+    } catch (e) {
+      print("Failed to disconnect: $e");
+      setState(() {
+        _isConnecting = false;
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        ListTile(
+          contentPadding: EdgeInsets.zero,
+          dense: true,
+          leading: SizedBox(
+            width: 170,
+            child: Text(
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              widget.device.platformName,
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+            ),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_isConnecting)
+                CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                )
+              else
+                Text(
+                  _isConnected ? "Connected" : "Not Connected",
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: _isConnected ? Colors.green : Colors.grey.shade400,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              if (_isConnected)
+                IconButton(
+                  icon: Icon(Icons.info_outline, color: Colors.grey.shade500),
+                  onPressed: () => _showDeviceInfo(widget.device),
+                ),
+            ],
+          ),
+          onTap: _isConnected ? _disconnectDevice : _connectDevice,
+        ),
+        Divider(),
+      ],
+    );
+  }
+
+  void _showDeviceInfo(BluetoothDevice device) {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (context) => DeviceDetailsPage(device: device),
+      ),
+    );
+    // showDialog(
+    //   context: context,
+    //   builder: (context) {
+    //     return AlertDialog(
+    //       title: Text("Device Info"),
+    //       content: Text(
+    //           "Device Name: ${device.platformName}\nID: ${device.remoteId}"),
+    //       actions: [
+    //         TextButton(
+    //           onPressed: () => Navigator.pop(context),
+    //           child: Text("Close"),
+    //         ),
+    //       ],
+    //     );
+    //   },
+    // );
   }
 }

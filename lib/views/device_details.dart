@@ -4,16 +4,35 @@ import 'dart:math';
 
 import 'package:mesha_bluetooth_data_retrieval/views/retrieving_data.dart'; // Import the math library for pi
 
-class DeviceDetailsPage extends StatefulWidget {
-  final String deviceName;
+import 'dart:async';
+import 'dart:convert';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'dart:io';
+import 'package:csv/csv.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:intl/intl.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-  const DeviceDetailsPage({super.key, required this.deviceName});
+class DeviceDetailsPage extends StatefulWidget {
+  final BluetoothDevice device;
+
+  const DeviceDetailsPage({super.key, required this.device});
 
   @override
   State<DeviceDetailsPage> createState() => _DeviceDetailsPageState();
 }
 
 class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
+  final storage = FlutterSecureStorage();
+  BluetoothCharacteristic? txCharacteristic;
+  BluetoothCharacteristic? rxCharacteristic;
+  List<String> messages = [];
+  String? _retrievedData = "";
+  final TextEditingController messageController = TextEditingController();
+  bool isDeleteConfirmed = false;
+  bool isDataRetrievalComplete = false;
+  StreamSubscription<List<int>>? _rxSubscription;
+  String fileName = '';
   // Dummy data for pendingReports and reportsGenerated
   List<Map<String, String>> pendingReports = [
     {
@@ -68,6 +87,137 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
       'status': 'uploaded'
     },
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    connectToDevice(widget.device);
+  }
+
+  /// Connect to a Selected Device
+  void connectToDevice(BluetoothDevice device) async {
+    await device.connect();
+    discoverServices();
+  }
+
+  /// Discover Bluetooth Services
+  void discoverServices() async {
+    List<BluetoothService> services = await widget.device.discoverServices();
+    for (var service in services) {
+      for (var char in service.characteristics) {
+        if (char.properties.write) {
+          txCharacteristic = char;
+        }
+        if (char.properties.notify || char.properties.read) {
+          rxCharacteristic = char;
+          rxCharacteristic!.setNotifyValue(true);
+          _rxSubscription = rxCharacteristic!.lastValueStream.listen((value) {
+            String receivedData = String.fromCharCodes(value);
+            setState(() {
+              messages.add("Received: $receivedData");
+              _retrievedData = _retrievedData! + receivedData;
+
+              // Check if the received data indicates the end of transmission
+              if (_retrievedData!.contains("END")) {
+                isDataRetrievalComplete = true;
+                convertAndSaveCSV(); // Automatically convert and save CSV
+              }
+            });
+          });
+        }
+      }
+    }
+  }
+
+  void convertAndSaveCSV() async {
+    if (!isDataRetrievalComplete) return; // Ensure data retrieval is complete
+
+    List<String> rows = _retrievedData!.split('\n');
+    List<String> headers = 'SN,Date,Time,B1,C'.split(',');
+
+    List<Map<String, dynamic>> allData = [];
+
+    for (int i = 1; i < rows.length - 2; i++) {
+      List<String> row = rows[i].split(',');
+      Map<String, dynamic> data = {};
+
+      for (int j = 0; j < headers.length; j++) {
+        data[headers[j]] = row[j];
+      }
+      allData.add(data);
+    }
+
+    List<List<String>> csvData = [
+      headers,
+      ...allData.map(
+        (map) =>
+            headers.map((header) => (map[header] ?? "").toString()).toList(),
+      )
+    ];
+
+    String csvString = const ListToCsvConverter().convert(csvData);
+
+    final directory = await getExternalStorageDirectory();
+
+    // Get current date and time
+    String formattedDateTime =
+        DateFormat('yyyy-MM-dd_HH:mm:ss').format(DateTime.now());
+
+    // Generate filename with platform name and date-time
+    fileName = "${widget.device.platformName}_$formattedDateTime.csv";
+    final path = "${directory?.path}/$fileName";
+
+    final file = File(path);
+    await file.writeAsString(csvString);
+
+    print("CSV file saved at: $path");
+  }
+
+  /// Send Data to Bluetooth Device
+  void sendData(String data) async {
+    if (txCharacteristic != null) {
+      await txCharacteristic!.write(data.codeUnits);
+    }
+  }
+
+  /// Send *GET$ Command to Retrieve Data
+  void retrieveData() async {
+    _retrievedData = "";
+    isDataRetrievalComplete = false; // Reset the flag
+    sendData("*GET\$");
+
+    // Wait for the data retrieval and CSV conversion to complete
+    await Future.doWhile(() async {
+      await Future.delayed(const Duration(milliseconds: 500));
+      return !isDataRetrievalComplete;
+    });
+
+    // Get the CSV file path
+    final directory = await getExternalStorageDirectory();
+    final path = "${directory?.path}/$fileName";
+    await storage.write(key: 'csvFilePath', value: path);
+    // Navigate to the next screen with the CSV file path
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RetrievingData(device: widget.device),
+      ),
+    );
+  }
+
+  /// Send *DELETE$ Command
+  void deleteData() {
+    sendData("*DELETE\$"); // First delete command
+    setState(() {
+      isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text
+    });
+    Future.delayed(const Duration(milliseconds: 500), () {
+      sendData("*DELETE\$"); // Second delete command after a short delay
+      setState(() {
+        isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text
+      });
+    });
+  }
 
   // Variables to store selected dates and times
   DateTime? fromDate;
@@ -328,6 +478,12 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   }
 
   @override
+  void dispose() {
+    _rxSubscription?.cancel();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
@@ -336,7 +492,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              widget.deviceName,
+              widget.device.platformName,
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w500,
@@ -653,7 +809,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                 children: [
                   Expanded(
                     child: TextButton(
-                      onPressed: () => {},
+                      onPressed: deleteData,
                       style: TextButton.styleFrom(
                         backgroundColor: Colors.grey.shade300,
                         foregroundColor: Colors.black,
@@ -662,8 +818,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                           borderRadius: BorderRadius.circular(10.0),
                         ),
                       ),
-                      child: const Text(
-                        'Start Test',
+                      child: Text(
+                        isDeleteConfirmed ? "Loading..." : "Start Test",
                         style: TextStyle(
                           fontSize: 20.0,
                           fontWeight: FontWeight.w500,
@@ -675,12 +831,13 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   Expanded(
                     child: TextButton(
                       onPressed: () => {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const RetrievingData(),
-                          ),
-                        ),
+                        retrieveData(),
+                        // Navigator.push(
+                        //   context,
+                        //   MaterialPageRoute(
+                        //     builder: (context) => const RetrievingData(),
+                        //   ),
+                        // ),
                       },
                       style: TextButton.styleFrom(
                         backgroundColor: const Color(0xFF00B562),
@@ -689,8 +846,11 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                           borderRadius: BorderRadius.circular(10.0),
                         ),
                       ),
-                      child: const Text(
-                        'Retrieve Data',
+                      child: Text(
+                        // 'Retrieve Data',
+                        isDataRetrievalComplete
+                            ? "Retrieve Data"
+                            : "Retrieving Data",
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 20,

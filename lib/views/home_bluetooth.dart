@@ -146,6 +146,13 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
 
     print('Paired Devices: $_pairedDevices');
     print('Scanned Devices: $_scannedDevices');
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('Scanned Devices: $_scannedDevices'),
+    //     showCloseIcon: true,
+    //     behavior: SnackBarBehavior.floating, // Make it float on top
+    //   ),
+    // );
   }
 
   Widget _buildDeviceList({

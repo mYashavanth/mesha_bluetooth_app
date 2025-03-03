@@ -30,7 +30,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   String? _retrievedData = "";
   final TextEditingController messageController = TextEditingController();
   bool isDeleteConfirmed = false;
-  bool isDataRetrievalComplete = false;
+  bool isDataRetrievalComplete = true;
   StreamSubscription<List<int>>? _rxSubscription;
   String fileName = '';
   // Dummy data for pendingReports and reportsGenerated
@@ -112,11 +112,31 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
           rxCharacteristic = char;
           rxCharacteristic!.setNotifyValue(true);
           _rxSubscription = rxCharacteristic!.lastValueStream.listen((value) {
+            if (!mounted) return; // Check if the widget is still mounted
             String receivedData = String.fromCharCodes(value);
             setState(() {
               messages.add("Received: $receivedData");
               _retrievedData = _retrievedData! + receivedData;
-
+              print(_retrievedData);
+              // Check for "NO RECORDS" and trigger sendData() after 1 minute
+              if (_retrievedData!.trim() == "NO RECORDS") {
+                // print("Waiting for 1 minute before sending *GET\$...");
+                // Future.delayed(const Duration(minutes: 1), () {
+                //   if (mounted) {
+                //     print("Sending *GET\$ command...");
+                //     sendData("*GET\$");
+                //   }
+                // });
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                        'No Records Found. Please wait for 1 minute before Retirving Data...'),
+                    showCloseIcon: true,
+                    behavior: SnackBarBehavior.floating, // Make it float on top
+                  ),
+                );
+                isDataRetrievalComplete = true;
+              }
               // Check if the received data indicates the end of transmission
               if (_retrievedData!.contains("END")) {
                 isDataRetrievalComplete = true;
@@ -133,12 +153,20 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     if (!isDataRetrievalComplete) return; // Ensure data retrieval is complete
 
     List<String> rows = _retrievedData!.split('\n');
+    if (rows.isEmpty) return; // Ensure there are rows to process
+
     List<String> headers = 'SN,Date,Time,B1,C'.split(',');
 
     List<Map<String, dynamic>> allData = [];
 
     for (int i = 1; i < rows.length - 2; i++) {
+      if (rows[i].isEmpty) continue; // Skip empty rows
       List<String> row = rows[i].split(',');
+      if (row.length < headers.length) {
+        continue;
+      }
+      // Skip rows with insufficient data
+
       Map<String, dynamic> data = {};
 
       for (int j = 0; j < headers.length; j++) {
@@ -169,8 +197,15 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
     final file = File(path);
     await file.writeAsString(csvString);
-
+    await storage.write(key: 'csvFilePath', value: path);
     print("CSV file saved at: $path");
+    deleteData();
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => RetrievingData(device: widget.device),
+      ),
+    );
   }
 
   /// Send Data to Bluetooth Device
@@ -185,33 +220,16 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     _retrievedData = "";
     isDataRetrievalComplete = false; // Reset the flag
     sendData("*GET\$");
-
-    // Wait for the data retrieval and CSV conversion to complete
-    await Future.doWhile(() async {
-      await Future.delayed(const Duration(milliseconds: 500));
-      return !isDataRetrievalComplete;
-    });
-
-    // Get the CSV file path
-    final directory = await getExternalStorageDirectory();
-    final path = "${directory?.path}/$fileName";
-    await storage.write(key: 'csvFilePath', value: path);
-    // Navigate to the next screen with the CSV file path
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => RetrievingData(device: widget.device),
-      ),
-    );
   }
 
   /// Send *DELETE$ Command
   void deleteData() {
+    _retrievedData = "";
     sendData("*DELETE\$"); // First delete command
     setState(() {
       isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text
     });
-    Future.delayed(const Duration(milliseconds: 500), () {
+    Future.delayed(const Duration(milliseconds: 100), () {
       sendData("*DELETE\$"); // Second delete command after a short delay
       setState(() {
         isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text
@@ -479,7 +497,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   @override
   void dispose() {
-    _rxSubscription?.cancel();
+    _rxSubscription?.cancel(); // Cancel the subscription
     super.dispose();
   }
 

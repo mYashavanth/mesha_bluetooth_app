@@ -2,8 +2,21 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
+import 'package:permission_handler/permission_handler.dart';
+
 class DownloadingReport extends StatefulWidget {
-  const DownloadingReport({super.key});
+  final String pdfFileName;
+  final BluetoothDevice device;
+
+  const DownloadingReport(
+      {super.key, required this.pdfFileName, required this.device});
 
   @override
   State<DownloadingReport> createState() => _DownloadingReportState();
@@ -12,10 +25,13 @@ class DownloadingReport extends StatefulWidget {
 class _DownloadingReportState extends State<DownloadingReport> {
   double progress = 0.0;
   int dotCount = 1; // For animated dots
+  bool isFetching = true;
 
   @override
   void initState() {
     super.initState();
+    print("pdfFileName: ${widget.pdfFileName}");
+    downloadAndOpenPDF(widget.pdfFileName);
     simulateProgress();
     animateDots();
   }
@@ -23,21 +39,71 @@ class _DownloadingReportState extends State<DownloadingReport> {
   // Simulate progress bar filling up gradually
   void simulateProgress() {
     Timer.periodic(const Duration(milliseconds: 300), (timer) {
-      setState(() {
-        progress += 0.1;
-        if (progress >= 1.0) {
+      if (!isFetching) {
+        setState(() {
           progress = 1.0;
-          timer.cancel();
-          // Navigator.pushReplacement(
-          //   context,
-          //   MaterialPageRoute(
-          //       builder: (context) => const DeviceDetailsPage(
-          //             deviceName: "Device Name",
-          //           )),
-          // );
-        }
-      });
+        });
+        timer.cancel();
+        Future.delayed(const Duration(milliseconds: 500), () {
+          navigateToNextScreen();
+        });
+      } else {
+        setState(() {
+          progress += 0.1;
+          if (progress >= 0.9) progress = 0.9; // Cap at 90% while waiting
+        });
+      }
     });
+  }
+
+  Future<void> downloadAndOpenPDF(String fileName) async {
+    final String url = "https://bt.meshaenergy.com/apis/pdf-report/$fileName";
+
+    try {
+      isFetching = false;
+      // // Request storage permission (only for Android)
+      // if (Platform.isAndroid) {
+      //   var status = await Permission.storage.request();
+      //   if (!status.isGranted) {
+      //     print("Permission denied");
+      //     return;
+      //   }
+      // }
+
+      // Get downloads directory
+      Directory? directory =
+          await getDownloadsDirectory() ?? await getExternalStorageDirectory();
+
+      String filePath = "${directory?.path}/$fileName";
+
+      // Make GET request to download the PDF
+      var response = await http.get(Uri.parse(url));
+
+      if (response.statusCode == 200) {
+        File file = File(filePath);
+        await file.writeAsBytes(response.bodyBytes);
+        print("PDF saved at: $filePath");
+
+        // Open the PDF file
+        OpenFile.open(filePath);
+      } else {
+        print("Failed to download PDF. Status Code: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error downloading PDF: $e");
+    } finally {
+      isFetching = true;
+    }
+  }
+
+  void navigateToNextScreen() {
+    print("navigation");
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(
+        builder: (buildContext) => DeviceDetailsPage(device: widget.device),
+      ),
+    );
   }
 
   // Animate the `...` effect (dots repeating)

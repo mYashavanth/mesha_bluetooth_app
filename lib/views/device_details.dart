@@ -9,6 +9,7 @@ import 'dart:convert';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:io';
 import 'package:csv/csv.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -203,7 +204,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => RetrievingData(device: widget.device),
+        builder: (context) => SystemDetails(device: widget.device),
       ),
     );
   }

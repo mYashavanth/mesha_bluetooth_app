@@ -2,53 +2,175 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/generting_report.dart';
 
+import 'dart:io';
+import 'dart:convert';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'package:path/path.dart';
+
 class UploadingData extends StatefulWidget {
-  const UploadingData({super.key});
+  final Map<String, dynamic> data;
+  final BluetoothDevice device;
+
+  const UploadingData({super.key, required this.data, required this.device});
 
   @override
   State<UploadingData> createState() => _UploadingDataState();
 }
 
 class _UploadingDataState extends State<UploadingData> {
+  final storage = const FlutterSecureStorage();
   double progress = 0.0;
   int dotCount = 1; // For animated dots
+  bool isFetching = true; // Track API fetching
+  String fileUploadId = '';
+
+  Timer? _progressTimer;
+  Timer? _dotsTimer;
 
   @override
   void initState() {
     super.initState();
+    uploadSystemDetails();
     simulateProgress();
     animateDots();
   }
 
   // Simulate progress bar filling up gradually
+
   void simulateProgress() {
-    Timer.periodic(const Duration(milliseconds: 300), (timer) {
-      setState(() {
-        progress += 0.1;
-        if (progress >= 1.0) {
-          progress = 1.0;
-          timer.cancel();
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(builder: (context) => const GenertingReport()),
-          );
+    _progressTimer = Timer.periodic(const Duration(milliseconds: 300), (timer) {
+      if (!isFetching) {
+        if (mounted) {
+          setState(() {
+            progress = 1.0;
+          });
         }
-      });
+        timer.cancel();
+        Future.delayed(const Duration(milliseconds: 500), () {
+          navigateToNextScreen();
+        });
+      } else {
+        if (mounted) {
+          setState(() {
+            progress += 0.1;
+            if (progress >= 0.9) progress = 0.9; // Cap at 90% while waiting
+          });
+        }
+      }
     });
+  }
+
+  Future<void> uploadSystemDetails() async {
+    try {
+      isFetching = false;
+      final response = await http.post(
+          Uri.parse('https://bt.meshaenergy.com/apis/app/add-user-info'),
+          body: widget.data);
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        print(responseData);
+        if (responseData['errFlag'] == 0) {
+          print(responseData['scannedUserId']);
+          await uploadCsvFile(responseData['scannedUserId']);
+        } else {
+          print(responseData['message']);
+        }
+      } else {
+        print('Failed to upload system details: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Error uploading system details: $e');
+    } finally {
+      isFetching = true;
+    }
+  }
+
+  Future<void> uploadCsvFile(scannedUserInfoId) async {
+    final csvFilePath = await storage.read(key: 'csvFilePath');
+    try {
+      final csvFile = File(csvFilePath!);
+      final csvBytes = await csvFile.readAsBytes();
+
+      // Get the token from FlutterSecureStorage
+      final token = await storage.read(key: 'userToken');
+
+      // Create a multipart request
+      var request = http.MultipartRequest(
+        'POST',
+        Uri.parse(
+            'https://bt.meshaenergy.com/apis/app/scan-file-upload-records'),
+      );
+
+      // Add fields
+      request.fields['deviceId'] = widget.device.platformName;
+      request.fields['scannedUserInfoId'] = scannedUserInfoId.toString();
+      request.fields['token'] = token ?? '';
+
+      // Attach the file
+      request.files.add(http.MultipartFile.fromBytes(
+        'scannedFile',
+        csvBytes,
+        filename: basename(csvFilePath), // Extract file name
+      ));
+      print(basename(csvFilePath));
+      // Send the request
+      var response = await request.send();
+      var responseBody = await response.stream.bytesToString();
+
+      print(responseBody);
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(responseBody);
+        if (responseData['errFlag'] == 0) {
+          // print(responseData['fileUploadId']);
+          setState(() {
+            fileUploadId = responseData['fileUploadId'].toString();
+          });
+        } else {
+          print("Failed to upload CSV: ${responseData['message']}");
+        }
+      } else {
+        print("Failed to upload CSV: ${response.statusCode}");
+      }
+    } catch (e) {
+      print("Error uploading CSV: $e");
+    }
+  }
+
+  void navigateToNextScreen() {
+    print("navigation");
+    Navigator.pushReplacement(
+      this.context,
+      MaterialPageRoute(
+        builder: (buildContext) =>
+            GenertingReport(fileUploadId: fileUploadId, device: widget.device),
+      ),
+    );
   }
 
   // Animate the `...` effect (dots repeating)
   void animateDots() {
-    Timer.periodic(const Duration(milliseconds: 500), (timer) {
-      setState(() {
-        dotCount = (dotCount % 3) + 1; // Cycle between 1, 2, 3 dots
-      });
+    _dotsTimer = Timer.periodic(const Duration(milliseconds: 500), (timer) {
+      if (mounted) {
+        setState(() {
+          dotCount = (dotCount % 3) + 1; // Cycle between 1, 2, 3 dots
+        });
+      }
     });
   }
 
   String generateDisplayText() {
     String dots = '.' * dotCount;
     return "Uploading data to cloud$dots";
+  }
+
+  @override
+  void dispose() {
+    _progressTimer?.cancel();
+    _dotsTimer?.cancel();
+    super.dispose();
   }
 
   @override

@@ -108,12 +108,12 @@ class _RetrievingDataState extends State<RetrievingData> {
   }
 
   void navigateToNextScreen() {
-    Navigator.pushReplacement(
-      this.context,
-      MaterialPageRoute(
-        builder: (buildContext) => SystemDetails(data: fetchedData),
-      ),
-    );
+    // Navigator.pushReplacement(
+    //   this.context,
+    //   MaterialPageRoute(
+    //     builder: (buildContext) => SystemDetails(data: fetchedData),
+    //   ),
+    // );
   }
 
   // Animate the `...` effect (dots repeating)

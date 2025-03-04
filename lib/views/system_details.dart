@@ -1,15 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/uploading_data.dart';
 
+import 'dart:async';
+import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+
 class SystemDetails extends StatefulWidget {
-  final List<dynamic> data;
-  const SystemDetails({super.key, required this.data});
+  final BluetoothDevice device;
+  const SystemDetails({super.key, required this.device});
   @override
   State<SystemDetails> createState() => _SystemDetailsState();
 }
 
 class _SystemDetailsState extends State<SystemDetails> {
   final _formKey = GlobalKey<FormState>();
+
+  final storage = const FlutterSecureStorage();
 
   TextEditingController customerNameController = TextEditingController();
   TextEditingController mobileNumberController = TextEditingController();
@@ -24,7 +30,7 @@ class _SystemDetailsState extends State<SystemDetails> {
   String? batterySystem;
   bool is24V = false;
 
-  void proceed() {
+  void proceed() async {
     if (_formKey.currentState!.validate()) {
       Map<String, dynamic> formData = {
         "Customer Name": customerNameController.text,
@@ -41,12 +47,48 @@ class _SystemDetailsState extends State<SystemDetails> {
               }
             : batterySerialController.text
       };
+//       token:<token>
+// customer_name:Siddarth
+// mobile:7795888894
+// place:Hassan
+// battery_brand:LivGuard
+// battery_capacity:12V
+// battery_rating:5
+// battery_system:12V
+// batter_serial_no_1:12345678
+      final token = await storage.read(key: 'userToken');
+      Map<String, dynamic> data = is24V
+          ? {
+              "token": token,
+              "customer_name": customerNameController.text,
+              "mobile": mobileNumberController.text,
+              "place": placeController.text,
+              "battery_brand": batteryBrandController.text,
+              "battery_capacity": batteryCapacityController.text,
+              "battery_rating": batteryRatingController.text,
+              "battery_system": batterySystem,
+              "batter_serial_no_1": battery1SerialController.text,
+              "batter_serial_no_2": battery2SerialController.text
+            }
+          : {
+              "token": token,
+              "customer_name": customerNameController.text,
+              "mobile": mobileNumberController.text,
+              "place": placeController.text,
+              "battery_brand": batteryBrandController.text,
+              "battery_capacity": batteryCapacityController.text,
+              "battery_rating": batteryRatingController.text,
+              "battery_system": batterySystem,
+              "batter_serial_no_1": batterySerialController.text
+            };
 
       print(formData);
+      print(data);
 
-      // Navigate to the next page (replace `NextPage()` with your actual page)
-      Navigator.push(
-          context, MaterialPageRoute(builder: (context) => UploadingData()));
+      if (mounted) {
+        Navigator.push(context,
+            MaterialPageRoute(builder: (context) => UploadingData(data: data, device: widget.device)));
+      }
     }
   }
 
@@ -62,22 +104,24 @@ class _SystemDetailsState extends State<SystemDetails> {
             child: Column(
               children: [
                 buildTextField("Customer Name*", customerNameController,
-                    required: true),
-                SizedBox(height: 16), // Added space
-                buildTextField("Mobile Number", mobileNumberController,
-                    keyboardType: TextInputType.phone),
-                SizedBox(height: 16), // Added space
-                buildTextField("Place*", placeController, required: true),
-                SizedBox(height: 16), // Added space
-                buildTextField("Battery Brand", batteryBrandController),
-                SizedBox(height: 16), // Added space
+                    required: true, validationType: "letters"),
+                SizedBox(height: 16),
+                buildTextField("Mobile Number*", mobileNumberController,
+                    required: true, validationType: "mobile"),
+                SizedBox(height: 16),
+                buildTextField("Place*", placeController,
+                    required: true, validationType: "letters"),
+                SizedBox(height: 16),
+                buildTextField("Battery Brand", batteryBrandController,
+                    validationType: "letters"),
+                SizedBox(height: 16),
                 buildTextField(
                     "Battery Capacity (Ah)*", batteryCapacityController,
-                    required: true),
-                SizedBox(height: 16), // Added space
+                    required: true, validationType: "alphanumeric"),
+                SizedBox(height: 16),
                 buildTextField("Battery Rating*", batteryRatingController,
-                    required: true),
-                SizedBox(height: 16), // Added space
+                    required: true, validationType: "numbers"),
+                SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: batterySystem,
                   decoration: InputDecoration(
@@ -108,17 +152,20 @@ class _SystemDetailsState extends State<SystemDetails> {
                       value == null ? "Please select a battery system" : null,
                 ),
                 if (!is24V) ...[
-                  SizedBox(height: 16), // Added space
+                  SizedBox(height: 16),
                   buildTextField(
-                      "Battery Serial Number", batterySerialController)
+                      "Battery Serial Number*", batterySerialController,
+                      required: true),
                 ],
                 if (is24V) ...[
-                  SizedBox(height: 16), // Added space
+                  SizedBox(height: 16),
                   buildTextField(
-                      "Battery 1 - Serial Number", battery1SerialController),
-                  SizedBox(height: 16), // Added space
+                      "Battery 1 - Serial Number*", battery1SerialController,
+                      required: true),
+                  SizedBox(height: 16),
                   buildTextField(
-                      "Battery 2 - Serial Number", battery2SerialController),
+                      "Battery 2 - Serial Number*", battery2SerialController,
+                      required: true),
                 ],
               ],
             ),
@@ -153,6 +200,7 @@ class _SystemDetailsState extends State<SystemDetails> {
 
   Widget buildTextField(String label, TextEditingController controller,
       {bool required = false,
+      String validationType = "none",
       TextInputType keyboardType = TextInputType.text}) {
     return TextFormField(
       controller: controller,
@@ -176,18 +224,30 @@ class _SystemDetailsState extends State<SystemDetails> {
         if (required && (value == null || value.isEmpty)) {
           return "This field is required";
         }
+        switch (validationType) {
+          case "letters":
+            if (!RegExp(r"^[a-zA-Z\s]+$").hasMatch(value!)) {
+              return "Only letters and spaces allowed";
+            }
+            break;
+          case "mobile":
+            if (!RegExp(r"^\d{10}$").hasMatch(value!)) {
+              return "Enter a valid 10-digit mobile number";
+            }
+            break;
+          case "alphanumeric":
+            if (!RegExp(r"^[a-zA-Z0-9]+$").hasMatch(value!)) {
+              return "Only letters and numbers allowed";
+            }
+            break;
+          case "numbers":
+            if (!RegExp(r"^\d+$").hasMatch(value!)) {
+              return "Only numbers allowed";
+            }
+            break;
+        }
         return null;
       },
-    );
-  }
-}
-
-class NextPage extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text("Next Page")),
-      body: Center(child: Text("Next Page Content Here")),
     );
   }
 }

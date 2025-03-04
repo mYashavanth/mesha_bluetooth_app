@@ -5,11 +5,9 @@ import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
-import 'package:permission_handler/permission_handler.dart';
 
 class DownloadingReport extends StatefulWidget {
   final String pdfFileName;
@@ -23,6 +21,7 @@ class DownloadingReport extends StatefulWidget {
 }
 
 class _DownloadingReportState extends State<DownloadingReport> {
+  final storage = const FlutterSecureStorage();
   double progress = 0.0;
   int dotCount = 1; // For animated dots
   bool isFetching = true;

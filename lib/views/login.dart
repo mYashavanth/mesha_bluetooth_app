@@ -177,6 +177,8 @@ class _LoginFormState extends State<LoginForm> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   bool _isPasswordVisible = false;
+  bool _isLoading = false;
+  String? _errorMessage; // Holds API error messages
 
   @override
   void dispose() {
@@ -189,7 +191,6 @@ class _LoginFormState extends State<LoginForm> {
     if (value == null || value.isEmpty) {
       return 'Email cannot be empty';
     }
-    // Email regex validation
     if (!RegExp(r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$')
         .hasMatch(value)) {
       return 'Please enter a valid email address';
@@ -199,7 +200,6 @@ class _LoginFormState extends State<LoginForm> {
 
   List<String> _validatePassword(String? value) {
     List<String> errors = [];
-
     if (value == null || value.isEmpty) {
       errors.add('Password cannot be empty');
     }
@@ -218,59 +218,50 @@ class _LoginFormState extends State<LoginForm> {
     if (value != null && !RegExp(r'[!@#\$%^&*(),.?":{}|<>]').hasMatch(value)) {
       errors.add('Password must include at least one special character');
     }
-
     return errors;
   }
 
   Future<void> _handleSubmit() async {
+    setState(() {
+      _isLoading = true;
+      _errorMessage = null; // Clear previous error
+    });
+
     try {
       if (_formKey.currentState!.validate()) {
         final map = <String, dynamic>{};
         map['email'] = _usernameController.text.trim();
         map['password'] = _passwordController.text.trim();
+
         final response = await http.post(
           Uri.parse('https://bt.meshaenergy.com/apis/app-users/validate-user'),
           body: map,
         );
+
         if (response.statusCode == 200) {
           final responseData = jsonDecode(response.body);
-          print("Backend response: $responseData");
-
           if (responseData['errFlag'] == 0) {
             await storage.write(key: 'userToken', value: responseData['token']);
             Navigator.pushNamed(context, '/home');
           } else {
-            final errorMessage = responseData['message'];
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text(errorMessage),
-                showCloseIcon: true,
-                behavior: SnackBarBehavior.floating, // Make it float on top
-              ),
-            );
+            setState(() {
+              _errorMessage = responseData['message'];
+            });
           }
-          // final tokentoprint = await storage.read(key: 'userToken');
-          // print('Token: $tokentoprint');
         } else {
-          print("Backend error: ${response.statusCode}");
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Backend error: ${response.statusCode}'),
-              showCloseIcon: true,
-              behavior: SnackBarBehavior.floating, // Make it float on top
-            ),
-          );
+          setState(() {
+            _errorMessage = 'Backend error: ${response.statusCode}';
+          });
         }
       }
     } catch (e) {
-      print('Error: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error: $e'),
-          showCloseIcon: true,
-          behavior: SnackBarBehavior.floating, // Make it float on top
-        ),
-      );
+      setState(() {
+        _errorMessage = 'Error: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -343,32 +334,32 @@ class _LoginFormState extends State<LoginForm> {
               return null;
             },
           ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerRight,
-            child: Text(
-              'Forgot password?',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.primary,
-                decoration: TextDecoration.underline,
+          if (_errorMessage != null) // Show error below password field
+            Padding(
+              padding: const EdgeInsets.only(top: 8),
+              child: Text(
+                _errorMessage!,
+                style: const TextStyle(color: Colors.red, fontSize: 14),
               ),
             ),
-          ),
-          const SizedBox(height: 16),
+          const Divider(height: 32),
           SizedBox(
             width: double.infinity,
             child: TextButton(
-              onPressed: _handleSubmit,
+              onPressed: _isLoading
+                  ? null
+                  : _handleSubmit, // Disable button when loading
               style: TextButton.styleFrom(
-                backgroundColor: const Color(0xFF00B562),
+                backgroundColor:
+                    _isLoading ? Colors.grey : const Color(0xFF00B562),
                 padding: const EdgeInsets.symmetric(vertical: 16.0),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10.0),
                 ),
               ),
-              child: const Text(
-                'Continue',
-                style: TextStyle(
+              child: Text(
+                _isLoading ? 'Loading...' : 'Continue',
+                style: const TextStyle(
                   color: Colors.white,
                   fontSize: 20,
                   fontWeight: FontWeight.w500,

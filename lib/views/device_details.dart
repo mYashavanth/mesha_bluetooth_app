@@ -2,10 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math';
 
-import 'package:mesha_bluetooth_data_retrieval/views/retrieving_data.dart'; // Import the math library for pi
-
 import 'dart:async';
-import 'dart:convert';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:io';
 import 'package:csv/csv.dart';
@@ -230,7 +227,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     setState(() {
       isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text
     });
-    Future.delayed(const Duration(milliseconds: 100), () {
+    Future.delayed(const Duration(milliseconds: 500), () {
       sendData("*DELETE\$"); // Second delete command after a short delay
       setState(() {
         isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text

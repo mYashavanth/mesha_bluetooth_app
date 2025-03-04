@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/uploading_data.dart';
 
-import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
@@ -47,15 +46,6 @@ class _SystemDetailsState extends State<SystemDetails> {
               }
             : batterySerialController.text
       };
-//       token:<token>
-// customer_name:Siddarth
-// mobile:7795888894
-// place:Hassan
-// battery_brand:LivGuard
-// battery_capacity:12V
-// battery_rating:5
-// battery_system:12V
-// batter_serial_no_1:12345678
       final token = await storage.read(key: 'userToken');
       Map<String, dynamic> data = is24V
           ? {
@@ -86,8 +76,11 @@ class _SystemDetailsState extends State<SystemDetails> {
       print(data);
 
       if (mounted) {
-        Navigator.push(context,
-            MaterialPageRoute(builder: (context) => UploadingData(data: data, device: widget.device)));
+        Navigator.push(
+            context,
+            MaterialPageRoute(
+                builder: (context) =>
+                    UploadingData(data: data, device: widget.device)));
       }
     }
   }

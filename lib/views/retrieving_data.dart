@@ -1,13 +1,10 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
-import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:path/path.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class RetrievingData extends StatefulWidget {
   final BluetoothDevice device;

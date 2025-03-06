@@ -10,6 +10,7 @@ import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:open_file/open_file.dart';
 
 class DeviceDetailsPage extends StatefulWidget {
   final BluetoothDevice device;
@@ -31,6 +32,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   bool isDataRetrievalComplete = true;
   StreamSubscription<List<int>>? _rxSubscription;
   String fileName = '';
+  List<FileSystemEntity> files = [];
+  String activeFilter = 'pdf'; // Default filter
   // Dummy data for pendingReports and reportsGenerated
   List<Map<String, String>> pendingReports = [
     {
@@ -90,6 +93,62 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   void initState() {
     super.initState();
     connectToDevice(widget.device);
+    fetchFiles();
+  }
+
+  Future<void> fetchFiles() async {
+    final fetchedFiles =
+        await getFilesFromDirectory(widget.device.platformName);
+    setState(() {
+      files = fetchedFiles.where((file) {
+        if (activeFilter == 'pdf') {
+          return file.path.endsWith('.pdf'); // Show only PDF files
+        } else if (activeFilter == 'csv') {
+          return file.path.endsWith('.csv'); // Show only CSV files
+        }
+        return false; // No other filters
+      }).toList();
+    });
+    print(files);
+  }
+
+  Future<List<FileSystemEntity>> getFilesFromDirectory(
+      String deviceName) async {
+    Directory? directory = await getExternalStorageDirectory();
+    Directory? downloadsDirectory = await getDownloadsDirectory();
+
+    List<FileSystemEntity> files = [];
+
+    if (directory != null) {
+      files.addAll(directory.listSync());
+    }
+
+    if (downloadsDirectory != null) {
+      files.addAll(downloadsDirectory.listSync());
+    }
+
+    // Filter files by device name
+    files = files.where((file) {
+      return file.path.contains(deviceName);
+    }).toList();
+
+    return files;
+  }
+
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes bytes'; // Less than 1 KB
+    } else if (bytes < 1024 * 1024) {
+      double kb = bytes / 1024;
+      return '${kb.toStringAsFixed(2)} KB'; // Between 1 KB and 1 MB
+    } else {
+      double mb = bytes / (1024 * 1024);
+      return '${mb.toStringAsFixed(2)} MB'; // Greater than 1 MB
+    }
+  }
+
+  String formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}'; // Customize the date format as needed
   }
 
   /// Connect to a Selected Device
@@ -159,6 +218,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
     for (int i = 1; i < rows.length - 2; i++) {
       if (rows[i].isEmpty) continue; // Skip empty rows
+      if (rows[i].contains("SN")) continue; 
       List<String> row = rows[i].split(',');
       if (row.length < headers.length) {
         continue;
@@ -187,7 +247,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
     // Get current date and time
     String formattedDateTime =
-        DateFormat('yyyy-MM-dd_HH:mm:ss').format(DateTime.now());
+        DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
 
     // Generate filename with platform name and date-time
     fileName = "${widget.device.platformName}_$formattedDateTime.csv";
@@ -198,12 +258,14 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     await storage.write(key: 'csvFilePath', value: path);
     print("CSV file saved at: $path");
     deleteData();
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (context) => SystemDetails(device: widget.device),
-      ),
-    );
+    if (mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => SystemDetails(device: widget.device),
+        ),
+      );
+    }
   }
 
   /// Send Data to Bluetooth Device
@@ -232,6 +294,14 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
       setState(() {
         isDeleteConfirmed = !isDeleteConfirmed; // Toggle the button text
       });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              'Data Deleted Successfully. Please wait for 1 minute before Retirving Data...'),
+          showCloseIcon: true,
+          behavior: SnackBarBehavior.floating, // Make it float on top
+        ),
+      );
     });
   }
 
@@ -660,38 +730,62 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                 children: [
                   IntrinsicWidth(
                     child: OutlinedButton(
-                      onPressed: () => {
-                        print("Reports button clicked!"),
+                      onPressed: () {
+                        setState(() {
+                          activeFilter = 'pdf'; // Set filter to PDF
+                        });
+                        fetchFiles(); // Refresh the list
+                        print("Reports button clicked!");
                       },
                       style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.green)),
-                      child: const Text(
+                        side: BorderSide(
+                          color: activeFilter == 'pdf'
+                              ? Colors.green
+                              : Colors.grey.shade400,
+                        ),
+                        backgroundColor: activeFilter == 'pdf'
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.transparent,
+                      ),
+                      child: Text(
                         'Reports',
                         style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            color: Colors.green),
+                          fontSize: 16,
+                          fontWeight: FontWeight.w400,
+                          color: activeFilter == 'pdf'
+                              ? Colors.green
+                              : Colors.black87,
+                        ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 8),
                   IntrinsicWidth(
                     child: OutlinedButton(
-                      onPressed: () => {
-                        print("CSV button clicked!"),
+                      onPressed: () {
+                        setState(() {
+                          activeFilter = 'csv'; // Set filter to CSV
+                        });
+                        fetchFiles(); // Refresh the list
+                        print("CSV button clicked!");
                       },
                       style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                        foregroundColor: Colors.transparent,
                         side: BorderSide(
-                          color: Colors.grey.shade400,
+                          color: activeFilter == 'csv'
+                              ? Colors.green
+                              : Colors.grey.shade400,
                         ),
+                        backgroundColor: activeFilter == 'csv'
+                            ? Colors.green.withOpacity(0.1)
+                            : Colors.transparent,
                       ),
-                      child: const Text(
+                      child: Text(
                         'CSV',
                         style: TextStyle(
                           fontSize: 16,
-                          color: Colors.black87,
+                          color: activeFilter == 'csv'
+                              ? Colors.green
+                              : Colors.black87,
                           fontWeight: FontWeight.w400,
                         ),
                       ),
@@ -701,44 +795,143 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
               ),
               const SizedBox(height: 10),
               // List of reportsGenerated
+              // ListView.builder(
+              //   shrinkWrap: true,
+              //   physics: const NeverScrollableScrollPhysics(),
+              //   itemCount: reportsGenerated.length,
+              //   itemBuilder: (context, index) {
+              //     final report = reportsGenerated[index];
+              //     return Column(
+              //       children: [
+              //         ListTile(
+              //           contentPadding: const EdgeInsets.symmetric(
+              //             horizontal: 0,
+              //             vertical: 0,
+              //           ),
+              //           leading: SvgPicture.asset(
+              //             'assets/svg/pdf.svg',
+              //             width: 40,
+              //             height: 40,
+              //           ),
+              //           title: Text(
+              //             report['fileName']!,
+              //             style: const TextStyle(
+              //               fontSize: 16,
+              //               fontWeight: FontWeight.w400,
+              //             ),
+              //           ),
+              //           subtitle: Row(
+              //             crossAxisAlignment: CrossAxisAlignment.start,
+              //             children: [
+              //               Text(
+              //                 '${report['date']} - ',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   color: Colors.grey.shade600,
+              //                   fontWeight: FontWeight.w400,
+              //                 ),
+              //               ),
+              //               Text(
+              //                 '${report['size']}',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   color: Colors.grey.shade600,
+              //                   fontWeight: FontWeight.w400,
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //           trailing: Row(
+              //             mainAxisSize: MainAxisSize.min,
+              //             children: [
+              //               SizedBox(
+              //                 width: 40,
+              //                 child: IconButton(
+              //                   icon: Transform.rotate(
+              //                     angle: pi / 2,
+              //                     child: const Icon(
+              //                       Icons.arrow_circle_right_sharp,
+              //                       color: Colors.blue,
+              //                     ),
+              //                   ),
+              //                   onPressed: () {
+              //                     print("Download ${report['fileName']}");
+              //                   },
+              //                 ),
+              //               ),
+              //               SizedBox(
+              //                 width: 35,
+              //                 child: IconButton(
+              //                   icon: Icon(
+              //                     report['status'] == 'uploaded'
+              //                         ? Icons.cloud_done_rounded
+              //                         : Icons.cloud_off_rounded,
+              //                     color: report['status'] == 'uploaded'
+              //                         ? Colors.green
+              //                         : Colors.red,
+              //                   ),
+              //                   onPressed: () {
+              //                     print("Upload ${report['fileName']}");
+              //                   },
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //         ),
+              //         const Divider(),
+              //       ],
+              //     );
+              //   },
+              // ),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: reportsGenerated.length,
+                itemCount: files.length,
                 itemBuilder: (context, index) {
-                  final report = reportsGenerated[index];
+                  final file = files[index];
                   return Column(
                     children: [
                       ListTile(
+                        onTap: () => _openFile(file),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 0,
                           vertical: 0,
                         ),
                         leading: SvgPicture.asset(
-                          'assets/svg/pdf.svg',
+                          file.path.endsWith('.csv')
+                              ? 'assets/svg/csv.svg'
+                              : 'assets/svg/pdf.svg',
                           width: 40,
                           height: 40,
                         ),
                         title: Text(
-                          report['fileName']!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          file.path.split('/').last,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                         subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${report['date']} - ',
+                              formatDate(file
+                                  .statSync()
+                                  .modified), // Display last modified date
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
+                            const SizedBox(
+                                width:
+                                    8), // Add some spacing between the date and file size
                             Text(
-                              '${report['size']}',
+                              formatFileSize(file
+                                  .statSync()
+                                  .size), // Display formatted file size
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -761,24 +954,16 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                                   ),
                                 ),
                                 onPressed: () {
-                                  print("Download ${report['fileName']}");
+                                  _openFile(file);
                                 },
                               ),
                             ),
                             SizedBox(
                               width: 35,
                               child: IconButton(
-                                icon: Icon(
-                                  report['status'] == 'uploaded'
-                                      ? Icons.cloud_done_rounded
-                                      : Icons.cloud_off_rounded,
-                                  color: report['status'] == 'uploaded'
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                                onPressed: () {
-                                  print("Upload ${report['fileName']}");
-                                },
+                                icon: Icon(Icons.cloud_done_rounded,
+                                    color: Colors.green),
+                                onPressed: () {},
                               ),
                             ),
                           ],
@@ -882,5 +1067,18 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
         ),
       ),
     );
+  }
+
+  void _openFile(FileSystemEntity file) async {
+    if (file is File) {
+      final result = await OpenFile.open(file.path);
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open file: ${file.path}'),
+          ),
+        );
+      }
+    }
   }
 }

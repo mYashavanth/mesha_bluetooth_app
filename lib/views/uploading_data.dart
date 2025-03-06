@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/generting_report.dart';
 
 import 'dart:io';
@@ -62,6 +63,61 @@ class _UploadingDataState extends State<UploadingData> {
     });
   }
 
+  Future<void> moveFileToCache() async {
+    try {
+      final path = await storage.read(key: 'csvFilePath');
+
+      // Check if the file path is available
+      if (path == null) {
+        print("No file path found.");
+      } else {
+        final file = File(path);
+
+        // Check if the file exists
+        if (await file.exists()) {
+          final fileName = path.split('/').last;
+          final cacheDir = Directory(
+              '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+
+          // Ensure the cache directory exists
+          if (!await cacheDir.exists()) {
+            await cacheDir.create(recursive: true);
+          }
+
+          final cachePath = '${cacheDir.path}/$fileName';
+
+          // Move the file
+          await file.copy(cachePath);
+          final cacheFile = File(cachePath);
+
+          if (await cacheFile.exists()) {
+            print("File successfully copied to cache.");
+            await file.delete(); // Delete the original file
+            print("Original file deleted.");
+          } else {
+            print("File not found in cache directory after copying.");
+          }
+        } else {
+          print("File does not exist at path: $path");
+        }
+      }
+    } catch (e) {
+      print("Error moving file to cache: $e");
+    } finally {
+      print(
+          '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+      Navigator.pushReplacement(
+        this.context,
+        MaterialPageRoute(
+          builder: (buildContext) => DeviceDetailsPage(device: widget.device),
+        ),
+      );
+      print(
+          '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+    }
+  }
+
+
   Future<void> uploadSystemDetails() async {
     try {
       isFetching = false;
@@ -73,15 +129,19 @@ class _UploadingDataState extends State<UploadingData> {
         print(responseData);
         if (responseData['errFlag'] == 0) {
           print(responseData['scannedUserId']);
+          // await moveFileToCache();
           await uploadCsvFile(responseData['scannedUserId']);
         } else {
           print(responseData['message']);
+          await moveFileToCache();
         }
       } else {
         print('Failed to upload system details: ${response.statusCode}');
+        await moveFileToCache();
       }
     } catch (e) {
       print('Error uploading system details: $e');
+      await moveFileToCache();
     } finally {
       isFetching = true;
     }
@@ -124,18 +184,21 @@ class _UploadingDataState extends State<UploadingData> {
       if (response.statusCode == 200) {
         final responseData = jsonDecode(responseBody);
         if (responseData['errFlag'] == 0) {
-          // print(responseData['fileUploadId']);
+          print(responseData['fileUploadId']);
           setState(() {
             fileUploadId = responseData['fileUploadId'].toString();
           });
         } else {
           print("Failed to upload CSV: ${responseData['message']}");
+          await moveFileToCache();
         }
       } else {
         print("Failed to upload CSV: ${response.statusCode}");
+        await moveFileToCache();
       }
     } catch (e) {
       print("Error uploading CSV: $e");
+      await moveFileToCache();
     }
   }
 

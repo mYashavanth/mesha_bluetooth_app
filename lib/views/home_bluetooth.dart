@@ -207,7 +207,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
               ),
         SizedBox(height: 16),
         SizedBox(
-          height: devices.length * 62.0,
+          height: devices.length < 4 ? devices.length * 62.0 : 248,
           child: ListView.builder(
             itemCount: devices.length,
             itemBuilder: (context, index) {

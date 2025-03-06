@@ -116,7 +116,7 @@ class _DownloadingReportState extends State<DownloadingReport> {
 
   String generateDisplayText() {
     String dots = '.' * dotCount;
-    return "Generting report$dots";
+    return "Downloading report$dots";
   }
 
   @override
@@ -187,7 +187,7 @@ class _DownloadingReportState extends State<DownloadingReport> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        "Generating report...",
+                        "Downloading report...",
                         style:
                             const TextStyle(color: Colors.white, fontSize: 18),
                         softWrap: true,

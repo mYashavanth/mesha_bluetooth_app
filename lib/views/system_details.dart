@@ -76,7 +76,7 @@ class _SystemDetailsState extends State<SystemDetails> {
       print(data);
 
       if (mounted) {
-        Navigator.push(
+        Navigator.pushReplacement(
             context,
             MaterialPageRoute(
                 builder: (context) =>

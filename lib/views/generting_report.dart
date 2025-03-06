@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/downloading_report.dart';
 
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
+import 'dart:io';
 
 class GenertingReport extends StatefulWidget {
   final String fileUploadId;
@@ -35,10 +37,9 @@ class _GenertingReportState extends State<GenertingReport> {
     super.initState();
     fileUploadId = widget.fileUploadId;
     print(fileUploadId);
-    generatePdfFileName().then((_) {
-      // Start simulating progress only after data is fetched
-      simulateProgress();
-    });
+    generatePdfFileName();
+    // Start simulating progress only after data is fetched
+    simulateProgress();
     animateDots();
   }
 
@@ -73,6 +74,58 @@ class _GenertingReportState extends State<GenertingReport> {
     });
   }
 
+  Future<void> moveFileToCache() async {
+    try {
+      final path = await storage.read(key: 'csvFilePath');
+      // if (path == null) {
+      //   print("No file path found.");
+      //   return;
+      // }
+
+      final file = File(path!);
+      // if (!await file.exists()) {
+      //   print("File does not exist at path: $path");
+      //   return;
+      // }
+
+      final fileName = path.split('/').last;
+      final cacheDir = Directory(
+          '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+
+      // Ensure the cache directory exists
+      if (!await cacheDir.exists()) {
+        await cacheDir.create(recursive: true);
+      }
+
+      final cachePath = '${cacheDir.path}/$fileName';
+
+      // Move the file
+      await file.copy(cachePath);
+      final cacheFile = File(cachePath);
+
+      if (await cacheFile.exists()) {
+        print("File successfully copied to cache.");
+        await file.delete(); // Delete the original file
+        print("Original file deleted.");
+      } else {
+        print("File not found in cache directory after copying.");
+      }
+    } catch (e) {
+      print("Error moving file to cache: $e");
+    } finally {
+      print(
+          '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+      Navigator.pushReplacement(
+        this.context,
+        MaterialPageRoute(
+          builder: (buildContext) => DeviceDetailsPage(device: widget.device),
+        ),
+      );
+      print(
+          '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+    }
+  }
+
   Future<void> generatePdfFileName() async {
     final token = await storage.read(key: 'userToken');
     try {
@@ -96,12 +149,15 @@ class _GenertingReportState extends State<GenertingReport> {
           }
         } else {
           print(responseData['message']);
+          await moveFileToCache();
         }
       } else {
         print('Failed to generate PDF: ${response.statusCode}');
+        await moveFileToCache();
       }
     } catch (e) {
       print('Error generating PDF: $e');
+      await moveFileToCache();
     } finally {
       if (mounted) {
         setState(() {
@@ -114,7 +170,7 @@ class _GenertingReportState extends State<GenertingReport> {
   void navigateToNextScreen() {
     print("navigation");
     Navigator.pushReplacement(
-      context,
+      this.context,
       MaterialPageRoute(
         builder: (buildContext) =>
             DownloadingReport(pdfFileName: pdfFileName, device: widget.device),

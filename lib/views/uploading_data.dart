@@ -63,6 +63,20 @@ class _UploadingDataState extends State<UploadingData> {
     });
   }
 
+  void snackbarFunction(String message) {
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 16),
+        ),
+        backgroundColor: Color(0xFF204433),
+        showCloseIcon: true,
+        behavior: SnackBarBehavior.floating, // Make it float on top
+      ),
+    );
+  }
+
   Future<void> moveFileToCache() async {
     try {
       final path = await storage.read(key: 'csvFilePath');
@@ -117,7 +131,6 @@ class _UploadingDataState extends State<UploadingData> {
     }
   }
 
-
   Future<void> uploadSystemDetails() async {
     try {
       isFetching = false;
@@ -130,18 +143,24 @@ class _UploadingDataState extends State<UploadingData> {
         if (responseData['errFlag'] == 0) {
           print(responseData['scannedUserId']);
           // await moveFileToCache();
+          snackbarFunction('System details uploaded successfully!');
           await uploadCsvFile(responseData['scannedUserId']);
         } else {
           print(responseData['message']);
           await moveFileToCache();
+          snackbarFunction(
+              'Failed to upload system details: ${responseData['message']}');
         }
       } else {
         print('Failed to upload system details: ${response.statusCode}');
         await moveFileToCache();
+        snackbarFunction(
+            'Failed to upload system details: ${response.statusCode}');
       }
     } catch (e) {
       print('Error uploading system details: $e');
       await moveFileToCache();
+      snackbarFunction('Error uploading system details: $e');
     } finally {
       isFetching = true;
     }
@@ -188,17 +207,22 @@ class _UploadingDataState extends State<UploadingData> {
           setState(() {
             fileUploadId = responseData['fileUploadId'].toString();
           });
+          snackbarFunction('CSV file uploaded successfully!');
+          await storage.delete(key: 'csvFilePath');
         } else {
           print("Failed to upload CSV: ${responseData['message']}");
           await moveFileToCache();
+          snackbarFunction('Failed to upload CSV: ${responseData['message']}');
         }
       } else {
         print("Failed to upload CSV: ${response.statusCode}");
         await moveFileToCache();
+        snackbarFunction('Failed to upload CSV: ${response.statusCode}');
       }
     } catch (e) {
       print("Error uploading CSV: $e");
       await moveFileToCache();
+      snackbarFunction('Error uploading CSV: $e');
     }
   }
 

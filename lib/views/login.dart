@@ -237,11 +237,13 @@ class _LoginFormState extends State<LoginForm> {
           Uri.parse('https://bt.meshaenergy.com/apis/app-users/validate-user'),
           body: map,
         );
-
+        print(response.body);
         if (response.statusCode == 200) {
           final responseData = jsonDecode(response.body);
           if (responseData['errFlag'] == 0) {
             await storage.write(key: 'userToken', value: responseData['token']);
+            await storage.write(
+                key: 'username', value: responseData['username']);
             Navigator.pushNamed(context, '/home');
           } else {
             setState(() {

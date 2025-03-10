@@ -7,6 +7,7 @@ import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class BluetoothDeviceManager extends StatefulWidget {
   const BluetoothDeviceManager({super.key});
@@ -16,42 +17,53 @@ class BluetoothDeviceManager extends StatefulWidget {
 }
 
 class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
-  String _userName = 'Amogh';
+  String _userName = 'User';
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+
+  Future<void> _loadUserName() async {
+    String? storedUserName = await _secureStorage.read(key: 'username');
+    if (storedUserName != null) {
+      setState(() {
+        _userName = storedUserName;
+      });
+    }
+  }
 
   List<BluetoothDevice> _pairedDevices = [];
   List<BluetoothDevice> _scannedDevices = [];
 
   // Dummy data for reports
   List<Map<String, String>> reports = [
-    {
-      'fileName': 'Report 1',
-      'date': '2023-10-01',
-      'size': '1.2 MB',
-      'status': 'Pending'
-    },
-    {
-      'fileName': 'Report 2',
-      'date': '2023-10-02',
-      'size': '2.5 MB',
-      'status': 'Recent'
-    },
-    {
-      'fileName': 'Report 3',
-      'date': '2023-10-03',
-      'size': '3.0 MB',
-      'status': 'Pending'
-    },
-    {
-      'fileName': 'Report 4',
-      'date': '2023-10-04',
-      'size': '1.8 MB',
-      'status': 'Recent'
-    },
+    // {
+    //   'fileName': 'Report 1',
+    //   'date': '2023-10-01',
+    //   'size': '1.2 MB',
+    //   'status': 'Pending'
+    // },
+    // {
+    //   'fileName': 'Report 2',
+    //   'date': '2023-10-02',
+    //   'size': '2.5 MB',
+    //   'status': 'Recent'
+    // },
+    // {
+    //   'fileName': 'Report 3',
+    //   'date': '2023-10-03',
+    //   'size': '3.0 MB',
+    //   'status': 'Pending'
+    // },
+    // {
+    //   'fileName': 'Report 4',
+    //   'date': '2023-10-04',
+    //   'size': '1.8 MB',
+    //   'status': 'Recent'
+    // },
   ];
 
   @override
   void initState() {
     super.initState();
+    _loadUserName();
     _checkBluetoothStatus();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _showAlertDialog();
@@ -131,14 +143,16 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
 
     FlutterBluePlus.scanResults.listen((results) {
-      setState(() {
-        _scannedDevices = results
-            .map((r) => r.device)
-            .where((device) =>
-                !_pairedDevices.contains(device) &&
-                device.platformName.isNotEmpty)
-            .toList();
-      });
+      if (mounted) {
+        setState(() {
+          _scannedDevices = results
+              .map((r) => r.device)
+              .where((device) =>
+                  !_pairedDevices.contains(device) &&
+                  device.platformName.isNotEmpty)
+              .toList();
+        });
+      }
     });
 
     await Future.delayed(Duration(seconds: 5)); // Ensure scan runs for 5 sec
@@ -314,6 +328,12 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     });
   }
 
+  @override
+  void dispose() {
+    FlutterBluePlus.stopScan();
+    super.dispose();
+  }
+
   // Function to handle info icon button click
 
   @override
@@ -336,7 +356,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      "$_userName!",
+                      "${_userName[0].toUpperCase()}${_userName.substring(1)}!",
                       style: const TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

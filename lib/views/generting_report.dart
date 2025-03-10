@@ -74,41 +74,57 @@ class _GenertingReportState extends State<GenertingReport> {
     });
   }
 
+  void snackbarFunction(String message) {
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 16),
+        ),
+        backgroundColor: Color(0xFF204433),
+        showCloseIcon: true,
+        behavior: SnackBarBehavior.floating, // Make it float on top
+      ),
+    );
+  }
+
   Future<void> moveFileToCache() async {
     try {
       final path = await storage.read(key: 'csvFilePath');
-      // if (path == null) {
-      //   print("No file path found.");
-      //   return;
-      // }
 
-      final file = File(path!);
-      // if (!await file.exists()) {
-      //   print("File does not exist at path: $path");
-      //   return;
-      // }
-
-      final fileName = path.split('/').last;
-      final cacheDir = Directory(
-          '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
-
-      // Ensure the cache directory exists
-      if (!await cacheDir.exists()) {
-        await cacheDir.create(recursive: true);
-      }
-
-      final cachePath = '${cacheDir.path}/$fileName';
-
-      // Move the file
-      await file.copy(cachePath);
-      final cacheFile = File(cachePath);
-
-      if (await cacheFile.exists()) {
-        print("File successfully copied to cache.");
-        await file.delete(); // Delete the original file
-        print("Original file deleted.");
+      // Check if the file path is available
+      if (path == null) {
+        print("No file path found.");
       } else {
-        print("File not found in cache directory after copying.");
+        final file = File(path);
+
+        // Check if the file exists
+        if (await file.exists()) {
+          final fileName = path.split('/').last;
+          final cacheDir = Directory(
+              '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+
+          // Ensure the cache directory exists
+          if (!await cacheDir.exists()) {
+            await cacheDir.create(recursive: true);
+          }
+
+          final cachePath = '${cacheDir.path}/$fileName';
+
+          // Move the file
+          await file.copy(cachePath);
+          final cacheFile = File(cachePath);
+
+          if (await cacheFile.exists()) {
+            print("File successfully copied to cache.");
+            await file.delete(); // Delete the original file
+            print("Original file deleted.");
+          } else {
+            print("File not found in cache directory after copying.");
+          }
+        } else {
+          print("File does not exist at path: $path");
+        }
       }
     } catch (e) {
       print("Error moving file to cache: $e");
@@ -147,17 +163,21 @@ class _GenertingReportState extends State<GenertingReport> {
               pdfFileName = responseData['pdfFileName'].toString();
             });
           }
+          snackbarFunction('PDF report generated successfully.');
         } else {
           print(responseData['message']);
           await moveFileToCache();
+          snackbarFunction('Failed to generate PDF report.');
         }
       } else {
         print('Failed to generate PDF: ${response.statusCode}');
         await moveFileToCache();
+        snackbarFunction('Failed to generate PDF report.');
       }
     } catch (e) {
       print('Error generating PDF: $e');
       await moveFileToCache();
+      snackbarFunction('Failed to generate PDF report.');
     } finally {
       if (mounted) {
         setState(() {

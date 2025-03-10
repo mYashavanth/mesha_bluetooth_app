@@ -36,18 +36,18 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   String activeFilter = 'pdf'; // Default filter
   // Dummy data for pendingReports and reportsGenerated
   List<Map<String, String>> pendingReports = [
-    {
-      'fileName': 'Report 1',
-      'date': '2023-10-01',
-      'size': '1.2 MB',
-      'status': 'Pending'
-    },
-    {
-      'fileName': 'Report 3',
-      'date': '2023-10-03',
-      'size': '3.0 MB',
-      'status': 'Pending'
-    },
+    // {
+    //   'fileName': 'Report 1',
+    //   'date': '2023-10-01',
+    //   'size': '1.2 MB',
+    //   'status': 'Pending'
+    // },
+    // {
+    //   'fileName': 'Report 3',
+    //   'date': '2023-10-03',
+    //   'size': '3.0 MB',
+    //   'status': 'Pending'
+    // },
   ];
 
   List<Map<String, String>> reportsGenerated = [
@@ -151,6 +151,49 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     return '${date.day}/${date.month}/${date.year}'; // Customize the date format as needed
   }
 
+  Future<void> moveFileToCache() async {
+    try {
+      final path = await storage.read(key: 'csvFilePath');
+
+      // Check if the file path is available
+      if (path == null) {
+        print("No file path found.");
+      } else {
+        final file = File(path);
+
+        // Check if the file exists
+        if (await file.exists()) {
+          final fileName = path.split('/').last;
+          final cacheDir = Directory(
+              '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+
+          // Ensure the cache directory exists
+          if (!await cacheDir.exists()) {
+            await cacheDir.create(recursive: true);
+          }
+
+          final cachePath = '${cacheDir.path}/$fileName';
+
+          // Move the file
+          await file.copy(cachePath);
+          final cacheFile = File(cachePath);
+
+          if (await cacheFile.exists()) {
+            print("File successfully copied to cache.");
+            await file.delete(); // Delete the original file
+            print("Original file deleted.");
+          } else {
+            print("File not found in cache directory after copying.");
+          }
+        } else {
+          print("File does not exist at path: $path");
+        }
+      }
+    } catch (e) {
+      print("Error moving file to cache: $e");
+    }
+  }
+
   /// Connect to a Selected Device
   void connectToDevice(BluetoothDevice device) async {
     await device.connect();
@@ -188,6 +231,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   SnackBar(
                     content: Text(
                         'No Records Found. Please wait for 1 minute before Retirving Data...'),
+                    backgroundColor: Color(0xFF204433),
                     showCloseIcon: true,
                     behavior: SnackBarBehavior.floating, // Make it float on top
                   ),
@@ -207,6 +251,12 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   }
 
   void convertAndSaveCSV() async {
+    final isPathEmpaty = await storage.read(key: 'csvFilePath');
+    print('Test Path: $isPathEmpaty');
+    if (isPathEmpaty != null) {
+      print("CSV file already saved at: $isPathEmpaty");
+      moveFileToCache();
+    }
     if (!isDataRetrievalComplete) return; // Ensure data retrieval is complete
 
     List<String> rows = _retrievedData!.split('\n');
@@ -218,7 +268,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
     for (int i = 1; i < rows.length - 2; i++) {
       if (rows[i].isEmpty) continue; // Skip empty rows
-      if (rows[i].contains("SN")) continue; 
+      if (rows[i].contains("SN")) continue;
       List<String> row = rows[i].split(',');
       if (row.length < headers.length) {
         continue;
@@ -257,6 +307,14 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     await file.writeAsString(csvString);
     await storage.write(key: 'csvFilePath', value: path);
     print("CSV file saved at: $path");
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Data Retrieved Successfully.'),
+        backgroundColor: Color(0xFF204433),
+        showCloseIcon: true,
+        behavior: SnackBarBehavior.floating, // Make it float on top
+      ),
+    );
     deleteData();
     if (mounted) {
       Navigator.pushReplacement(
@@ -298,6 +356,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
         SnackBar(
           content: Text(
               'Data Deleted Successfully. Please wait for 1 minute before Retirving Data...'),
+          backgroundColor: Color(0xFF204433),
           showCloseIcon: true,
           behavior: SnackBarBehavior.floating, // Make it float on top
         ),

@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'dart:math';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -11,20 +14,38 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  List<FileSystemEntity> files = [];
+  String activeFilter = 'all'; // Default filter is 'all'
+  final Map<String, int> durationOptions = {
+    'Last 7 days': 7,
+    'Last 14 days': 14,
+    'Last 30 days': 30,
+  };
+  String?
+      selectedDuration; // Stores the selected duration key (e.g., "Last 7 days")
+  int?
+      selectedDurationDays; // Stores the selected duration value in days (e.g., 7)
+
+  @override
+  void initState() {
+    super.initState();
+    fetchFiles(); // Fetch files from the device storage
+  }
+
   // Dummy data for pendingReports and reportsGenerated
   List<Map<String, String>> pendingReports = [
-    {
-      'fileName': 'Report 1',
-      'date': '2023-10-01',
-      'size': '1.2 MB',
-      'status': 'Pending'
-    },
-    {
-      'fileName': 'Report 3',
-      'date': '2023-10-03',
-      'size': '3.0 MB',
-      'status': 'Pending'
-    },
+    // {
+    //   'fileName': 'Report 1',
+    //   'date': '2023-10-01',
+    //   'size': '1.2 MB',
+    //   'status': 'Pending'
+    // },
+    // {
+    //   'fileName': 'Report 3',
+    //   'date': '2023-10-03',
+    //   'size': '3.0 MB',
+    //   'status': 'Pending'
+    // },
   ];
 
   List<Map<String, String>> reportsGenerated = [
@@ -66,22 +87,120 @@ class _ReportsScreenState extends State<ReportsScreen> {
     },
   ];
 
+  Future<void> fetchFiles() async {
+    final fetchedFiles = await getFilesFromDirectory();
+    setState(() {
+      files = fetchedFiles.where((file) {
+        if (activeFilter == 'all') {
+          return true; // Show all files
+        } else if (activeFilter == 'pdf') {
+          return file.path.endsWith('.pdf'); // Show only PDF files
+        } else if (activeFilter == 'csv') {
+          return file.path.endsWith('.csv'); // Show only CSV files
+        } else if (activeFilter == 'duration' && selectedDurationDays != null) {
+          // Filter files based on the last modified date
+          final now = DateTime.now();
+          final lastModified = file.statSync().modified;
+          final difference = now.difference(lastModified).inDays;
+          return difference <=
+              selectedDurationDays!; // Show files modified within the selected duration
+        }
+        return false; // No other filters
+      }).toList();
+    });
+    print(files);
+  }
+
+  Future<List<FileSystemEntity>> getFilesFromDirectory() async {
+    Directory? directory = await getExternalStorageDirectory();
+    Directory? downloadsDirectory = await getDownloadsDirectory();
+
+    List<FileSystemEntity> files = [];
+
+    if (directory != null) {
+      files.addAll(directory.listSync());
+    }
+
+    if (downloadsDirectory != null) {
+      files.addAll(downloadsDirectory.listSync());
+    }
+
+    // Filter files by device name
+    files = files.where((file) {
+      // Exclude the downloads folder
+      if (file is Directory && file.path == downloadsDirectory?.path) {
+        return false;
+      }
+      return true; // Include all other files and folders
+    }).toList();
+
+    return files;
+  }
+
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes bytes'; // Less than 1 KB
+    } else if (bytes < 1024 * 1024) {
+      double kb = bytes / 1024;
+      return '${kb.toStringAsFixed(2)} KB'; // Between 1 KB and 1 MB
+    } else {
+      double mb = bytes / (1024 * 1024);
+      return '${mb.toStringAsFixed(2)} MB'; // Greater than 1 MB
+    }
+  }
+
+  String formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}'; // Customize the date format as needed
+  }
+
+  Future<void> _showDurationOptions(BuildContext context) async {
+    final selectedOption = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Duration'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: durationOptions.keys.map((String key) {
+              return ListTile(
+                title: Text(key),
+                onTap: () {
+                  Navigator.pop(
+                      context, key); // Return the selected duration key
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+
+    if (selectedOption != null) {
+      setState(() {
+        selectedDuration = selectedOption;
+        selectedDurationDays = durationOptions[selectedOption];
+        activeFilter = 'duration'; // Set the active filter to duration
+      });
+      fetchFiles(); // Refresh the file list
+    }
+  }
+
   // Variables to store selected dates and times
   DateTime? fromDate;
   TimeOfDay? fromTime;
   DateTime? toDate;
   TimeOfDay? toTime;
 
-// Track the index of the selected button
-  int _selectedIndex = 0;
+// // Track the index of the selected button
+//   int _selectedIndex = 0;
 
-  // Function to handle button press and update the selected index
-  void _onButtonPressed(int index, String text) {
-    setState(() {
-      _selectedIndex = index; // Update selected button
-    });
-    print("Selected button: $text");
-  }
+//   // Function to handle button press and update the selected index
+//   void _onButtonPressed(int index, String text) {
+//     setState(() {
+//       _selectedIndex = index; // Update selected button
+//     });
+//     print("Selected button: $text");
+//   }
 
   // Function to show the date-time picker bottom sheet
   void _showDateTimePicker(BuildContext context) {
@@ -480,13 +599,148 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 scrollDirection: Axis.horizontal,
                 child: Row(
                   children: [
-                    _buildButton("All", 0),
+                    // All Button
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            activeFilter =
+                                'all'; // Set filter to show all files
+                          });
+                          fetchFiles(); // Refresh the list
+                          print("All button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'all'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'all'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'All',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: activeFilter == 'all'
+                                ? Colors.green
+                                : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    _buildButton("Reports", 1),
+                    // Reports Button (PDF)
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            activeFilter = 'pdf'; // Set filter to PDF
+                          });
+                          fetchFiles(); // Refresh the list
+                          print("Reports button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'pdf'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'pdf'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'Reports',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: activeFilter == 'pdf'
+                                ? Colors.green
+                                : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    _buildButton("CSV", 2),
+                    // CSV Button
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            activeFilter = 'csv'; // Set filter to CSV
+                          });
+                          fetchFiles(); // Refresh the list
+                          print("CSV button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'csv'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'csv'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'CSV',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: activeFilter == 'csv'
+                                ? Colors.green
+                                : Colors.black87,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
                     const SizedBox(width: 8),
-                    _buildButton("Duration", 3),
+                    // Duration Button
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _showDurationOptions(
+                              context); // Show duration options
+                          print("Duration button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'duration'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'duration'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'Duration',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: activeFilter == 'duration'
+                                ? Colors.green
+                                : Colors.black87,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (selectedDuration !=
+                        null) // Display the selected duration
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          selectedDuration!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
                   ],
                 ),
               ),
@@ -496,41 +750,52 @@ class _ReportsScreenState extends State<ReportsScreen> {
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: reportsGenerated.length,
+                itemCount: files.length,
                 itemBuilder: (context, index) {
-                  final report = reportsGenerated[index];
+                  final file = files[index];
                   return Column(
                     children: [
                       ListTile(
+                        onTap: () => _openFile(file),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 0,
                           vertical: 0,
                         ),
                         leading: SvgPicture.asset(
-                          'assets/svg/pdf.svg',
+                          file.path.endsWith('.csv')
+                              ? 'assets/svg/csv.svg'
+                              : 'assets/svg/pdf.svg',
                           width: 40,
                           height: 40,
                         ),
                         title: Text(
-                          report['fileName']!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          file.path.split('/').last,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                         subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${report['date']} - ',
+                              formatDate(file
+                                  .statSync()
+                                  .modified), // Display last modified date
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
+                            const SizedBox(
+                                width:
+                                    8), // Add some spacing between the date and file size
                             Text(
-                              '${report['size']}',
+                              formatFileSize(file
+                                  .statSync()
+                                  .size), // Display formatted file size
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -553,24 +818,16 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   ),
                                 ),
                                 onPressed: () {
-                                  print("Download ${report['fileName']}");
+                                  _openFile(file);
                                 },
                               ),
                             ),
                             SizedBox(
                               width: 35,
                               child: IconButton(
-                                icon: Icon(
-                                  report['status'] == 'uploaded'
-                                      ? Icons.cloud_done_rounded
-                                      : Icons.cloud_off_rounded,
-                                  color: report['status'] == 'uploaded'
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                                onPressed: () {
-                                  print("Upload ${report['fileName']}");
-                                },
+                                icon: Icon(Icons.cloud_done_rounded,
+                                    color: Colors.green),
+                                onPressed: () {},
                               ),
                             ),
                           ],
@@ -598,7 +855,7 @@ class _ReportsScreenState extends State<ReportsScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              '${reportsGenerated.length} reports generated.',
+              '${files.length} reports generated.',
               style: const TextStyle(
                 fontWeight: FontWeight.w500,
               ),
@@ -619,34 +876,47 @@ class _ReportsScreenState extends State<ReportsScreen> {
   }
 
 // Helper method to build buttons
-  Widget _buildButton(String text, int index) {
-    // Check if this button is selected
-    bool isActive = _selectedIndex == index;
+  // Widget _buildButton(String text, int index) {
+  //   // Check if this button is selected
+  //   bool isActive = _selectedIndex == index;
 
-    return IntrinsicWidth(
-      child: OutlinedButton(
-        onPressed: () =>
-            _onButtonPressed(index, text), // Change active state on press
-        style: OutlinedButton.styleFrom(
-          backgroundColor:
-              Colors.transparent, // Transparent for inactive green buttons
-          foregroundColor: isActive
-              ? Colors.green // White text for active button
-              : Colors.black87, // Black text for inactive gray button
-          side: BorderSide(
-              color: isActive ? Colors.green : Colors.grey), // Border color
-        ),
-        child: Text(
-          text,
-          style: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-            color: isActive
-                ? Colors.green // White text for active button
-                : Colors.black87,
+  //   return IntrinsicWidth(
+  //     child: OutlinedButton(
+  //       onPressed: () =>
+  //           _onButtonPressed(index, text), // Change active state on press
+  //       style: OutlinedButton.styleFrom(
+  //         backgroundColor:
+  //             Colors.transparent, // Transparent for inactive green buttons
+  //         foregroundColor: isActive
+  //             ? Colors.green // White text for active button
+  //             : Colors.black87, // Black text for inactive gray button
+  //         side: BorderSide(
+  //             color: isActive ? Colors.green : Colors.grey), // Border color
+  //       ),
+  //       child: Text(
+  //         text,
+  //         style: TextStyle(
+  //           fontSize: 16,
+  //           fontWeight: FontWeight.w400,
+  //           color: isActive
+  //               ? Colors.green // White text for active button
+  //               : Colors.black87,
+  //         ),
+  //       ),
+  //     ),
+  //   );
+  // }
+
+  void _openFile(FileSystemEntity file) async {
+    if (file is File) {
+      final result = await OpenFile.open(file.path);
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open file: ${file.path}'),
           ),
-        ),
-      ),
-    );
+        );
+      }
+    }
   }
 }

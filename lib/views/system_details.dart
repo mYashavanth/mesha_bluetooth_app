@@ -113,7 +113,7 @@ class _SystemDetailsState extends State<SystemDetails> {
                     required: true, validationType: "alphanumeric"),
                 SizedBox(height: 16),
                 buildTextField("Battery Rating*", batteryRatingController,
-                    required: true, validationType: "numbers"),
+                    required: true, validationType: "alphanumeric"),
                 SizedBox(height: 16),
                 DropdownButtonFormField<String>(
                   value: batterySystem,
@@ -147,18 +147,21 @@ class _SystemDetailsState extends State<SystemDetails> {
                 if (!is24V) ...[
                   SizedBox(height: 16),
                   buildTextField(
-                      "Battery Serial Number*", batterySerialController,
-                      required: true),
+                    "Battery Serial Number*", batterySerialController,
+                    // required: true
+                  ),
                 ],
                 if (is24V) ...[
                   SizedBox(height: 16),
                   buildTextField(
-                      "Battery 1 - Serial Number*", battery1SerialController,
-                      required: true),
+                    "Battery 1 - Serial Number*", battery1SerialController,
+                    // required: true
+                  ),
                   SizedBox(height: 16),
                   buildTextField(
-                      "Battery 2 - Serial Number*", battery2SerialController,
-                      required: true),
+                    "Battery 2 - Serial Number*", battery2SerialController,
+                    // required: true
+                  ),
                 ],
               ],
             ),

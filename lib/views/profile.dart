@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,11 +11,27 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   // Example user data
-  final String userName = "John Doe";
+  final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
+  String userName = "User";
   final String userTag = "Pro";
   final String email = "john.doe@example.com";
   final String mobileNumber = "+1234567890";
   final int dataRetrieved = 300;
+
+  Future<void> _loadUserName() async {
+    String? storedUserName = await _secureStorage.read(key: 'username');
+    if (storedUserName != null) {
+      setState(() {
+        userName = storedUserName;
+      });
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserName();
+  }
 
   // Function to show the support dialog
   void showSupportDialog(BuildContext context) {
@@ -51,7 +68,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               color: Color(0xFF848F8B)),
                         ),
                         onTap: () {
-                          launchUrl(Uri.parse('tel:+91 9481726689'));
+                          launchUrl(Uri.parse('tel:+91 9019089955'));
                         },
                       ),
                       const Divider(height: 0),
@@ -68,7 +85,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         onTap: () {
                           launchUrl(Uri(
                             scheme: 'mailto',
-                            path: 'yashavantham143@gmail.com',
+                            path: 'support@meshatech.com',
                             query:
                                 'subject=Support Request&body=Please help me with...\n',
                           ));
@@ -157,9 +174,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   children: [
                     // Logout Button
                     OutlinedButton(
-                      onPressed: () {
+                      onPressed: () async {
                         Navigator.of(context).pop(); // Close the dialog
                         // Perform logout logic here
+                        await _secureStorage.deleteAll();
+                        Navigator.pushReplacementNamed(context, '/login');
                       },
                       style: OutlinedButton.styleFrom(
                         side: const BorderSide(color: Colors.transparent),
@@ -263,7 +282,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               Row(
                                 children: [
                                   Text(
-                                    userName,
+                                    "${userName[0].toUpperCase()}${userName.substring(1)}",
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,

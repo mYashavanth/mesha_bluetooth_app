@@ -15,7 +15,7 @@ class _MyProfileState extends State<MyProfile> {
   final TextEditingController placeController = TextEditingController();
 
   // Variables to hold the initial user data
-  String initialName = "John Doe";
+  String initialName = "User";
   String initialEmail = "johndoe@example.com";
   String initialMobile = "1234567890";
   String initialPlace = "New York";

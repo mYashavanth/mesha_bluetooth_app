@@ -35,6 +35,20 @@ class _DownloadingReportState extends State<DownloadingReport> {
     animateDots();
   }
 
+  void snackbarFunction(String message) {
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 16),
+        ),
+        backgroundColor: Color(0xFF204433),
+        showCloseIcon: true,
+        behavior: SnackBarBehavior.floating, // Make it float on top
+      ),
+    );
+  }
+
   // Simulate progress bar filling up gradually
   void simulateProgress() {
     Timer.periodic(const Duration(milliseconds: 300), (timer) {
@@ -82,14 +96,16 @@ class _DownloadingReportState extends State<DownloadingReport> {
         File file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
         print("PDF saved at: $filePath");
-
+        snackbarFunction("PDF downloaded successfully");
         // Open the PDF file
         OpenFile.open(filePath);
       } else {
         print("Failed to download PDF. Status Code: ${response.statusCode}");
+        snackbarFunction("Failed to download PDF");
       }
     } catch (e) {
       print("Error downloading PDF: $e");
+      snackbarFunction("Error downloading PDF");
     } finally {
       isFetching = true;
     }

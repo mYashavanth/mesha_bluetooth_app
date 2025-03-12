@@ -49,9 +49,6 @@ class _UploadingDataState extends State<UploadingData> {
           });
         }
         timer.cancel();
-        Future.delayed(const Duration(milliseconds: 500), () {
-          navigateToNextScreen();
-        });
       } else {
         if (mounted) {
           setState(() {
@@ -209,6 +206,7 @@ class _UploadingDataState extends State<UploadingData> {
           });
           snackbarFunction('CSV file uploaded successfully!');
           await storage.delete(key: 'csvFilePath');
+          navigateToNextScreen(); // Navigate to the next screen
         } else {
           print("Failed to upload CSV: ${responseData['message']}");
           await moveFileToCache();

@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:convert';
 
 class ChangePasswordPage extends StatefulWidget {
   const ChangePasswordPage({super.key});
@@ -24,16 +27,66 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   // Regex for password validation
   final RegExp passwordRegex = RegExp(r'^(?=.*[A-Z])(?=.*[a-z])(?=.*\W).{8,}$');
 
+  void snackbarFunction(String message) {
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(
+          message,
+          style: const TextStyle(fontSize: 16),
+        ),
+        backgroundColor: Color(0xFF204433),
+        showCloseIcon: true,
+        behavior: SnackBarBehavior.floating, // Make it float on top
+      ),
+    );
+  }
+
   // Function to handle password reset
-  void resetPassword() {
+  Future<void> resetPassword() async {
     if (_formKey.currentState!.validate()) {
       String currentPassword = currentPasswordController.text.trim();
       String newPassword = newPasswordController.text.trim();
 
-      // Simulate saving data and show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text("Password reset successfully!")),
+      // Retrieve token from secure storage
+      final storage = FlutterSecureStorage();
+      String? token = await storage.read(key: 'userToken');
+
+      if (token == null) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("User token not found!")),
+        );
+        return;
+      }
+
+      // Prepare data to send to the backend
+      Map<String, String> data = {
+        'oldPassword': currentPassword,
+        'newPassword': newPassword,
+        'token': token,
+      };
+
+      // Send POST request to the API
+      final response = await http.post(
+        Uri.parse('https://bt.meshaenergy.com/apis/app-users/change-password'),
+        body: data,
       );
+      print(
+          '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+      print(response.body);
+      print(
+          '++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
+
+      if (response.statusCode == 200) {
+        final responseData = jsonDecode(response.body);
+        if (responseData['errFlag'] == 0) {
+          snackbarFunction(responseData['message']);
+          Navigator.pop(context);
+        } else {
+          snackbarFunction(responseData['message']);
+        }
+      } else {
+        snackbarFunction("An error occurred. Please try again later.");
+      }
 
       // Print updated values for debugging
       print("Current Password: $currentPassword");

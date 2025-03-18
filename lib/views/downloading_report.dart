@@ -11,10 +11,9 @@ import 'package:open_file/open_file.dart';
 
 class DownloadingReport extends StatefulWidget {
   final String pdfFileName;
-  final BluetoothDevice device;
+  final BluetoothDevice? device;
 
-  const DownloadingReport(
-      {super.key, required this.pdfFileName, required this.device});
+  const DownloadingReport({super.key, required this.pdfFileName, this.device});
 
   @override
   State<DownloadingReport> createState() => _DownloadingReportState();
@@ -96,9 +95,9 @@ class _DownloadingReportState extends State<DownloadingReport> {
         File file = File(filePath);
         await file.writeAsBytes(response.bodyBytes);
         print("PDF saved at: $filePath");
+        OpenFile.open(filePath);
         snackbarFunction("PDF downloaded successfully");
         // Open the PDF file
-        OpenFile.open(filePath);
       } else {
         print("Failed to download PDF. Status Code: ${response.statusCode}");
         snackbarFunction("Failed to download PDF");
@@ -111,14 +110,27 @@ class _DownloadingReportState extends State<DownloadingReport> {
     }
   }
 
-  void navigateToNextScreen() {
+  void navigateToNextScreen() async {
+    final pageIndex = await storage.read(key: 'pageIndex');
     print("navigation");
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(
-        builder: (buildContext) => DeviceDetailsPage(device: widget.device),
-      ),
-    );
+    switch (pageIndex) {
+      case '0':
+        Navigator.pushReplacement(
+          this.context,
+          MaterialPageRoute(
+            builder: (buildContext) => DeviceDetailsPage(device: widget.device),
+          ),
+        );
+        break;
+      case '1':
+        Navigator.pushReplacementNamed(this.context, '/reports');
+        break;
+      case '2':
+        Navigator.pushReplacementNamed(this.context, '/home');
+        break;
+      default:
+        print('Invalid page index: $pageIndex');
+    }
   }
 
   // Animate the `...` effect (dots repeating)

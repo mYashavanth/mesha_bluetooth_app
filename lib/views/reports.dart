@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
 import 'dart:math';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -14,6 +16,7 @@ class ReportsScreen extends StatefulWidget {
 }
 
 class _ReportsScreenState extends State<ReportsScreen> {
+  final storage = const FlutterSecureStorage();
   List<FileSystemEntity> files = [];
   String activeFilter = 'all'; // Default filter is 'all'
   final Map<String, int> durationOptions = {
@@ -25,11 +28,66 @@ class _ReportsScreenState extends State<ReportsScreen> {
       selectedDuration; // Stores the selected duration key (e.g., "Last 7 days")
   int?
       selectedDurationDays; // Stores the selected duration value in days (e.g., 7)
+  List<FileSystemEntity> catchFiles = [];
 
   @override
   void initState() {
     super.initState();
     fetchFiles(); // Fetch files from the device storage
+    moveFileToCache().then((_) => fetchCatchFiles());
+  }
+
+  Future<void> fetchCatchFiles() async {
+    final cacheDir = Directory(
+        '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+    final cacheFiles = cacheDir.listSync();
+
+    setState(() {
+      catchFiles = cacheFiles;
+    });
+  }
+
+  Future<void> moveFileToCache() async {
+    try {
+      final path = await storage.read(key: 'csvFilePath');
+
+      // Check if the file path is available
+      if (path == null) {
+        print("No file path found.");
+      } else {
+        final file = File(path);
+
+        // Check if the file exists
+        if (await file.exists()) {
+          final fileName = path.split('/').last;
+          final cacheDir = Directory(
+              '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+
+          // Ensure the cache directory exists
+          if (!await cacheDir.exists()) {
+            await cacheDir.create(recursive: true);
+          }
+
+          final cachePath = '${cacheDir.path}/$fileName';
+
+          // Move the file
+          await file.copy(cachePath);
+          final cacheFile = File(cachePath);
+
+          if (await cacheFile.exists()) {
+            print("File successfully copied to cache.");
+            await file.delete(); // Delete the original file
+            print("Original file deleted.");
+          } else {
+            print("File not found in cache directory after copying.");
+          }
+        } else {
+          print("File does not exist at path: $path");
+        }
+      }
+    } catch (e) {
+      print("Error moving file to cache: $e");
+    }
   }
 
   // Dummy data for pendingReports and reportsGenerated
@@ -479,44 +537,143 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
+              // ListView.builder(
+              //   shrinkWrap: true,
+              //   physics: const NeverScrollableScrollPhysics(),
+              //   itemCount: pendingReports.length,
+              //   itemBuilder: (context, index) {
+              //     final report = pendingReports[index];
+              //     return Column(
+              //       children: [
+              //         ListTile(
+              //           contentPadding: const EdgeInsets.symmetric(
+              //             horizontal: 0,
+              //             vertical: 0,
+              //           ),
+              //           leading: SvgPicture.asset(
+              //             'assets/svg/csv.svg',
+              //             width: 40,
+              //             height: 40,
+              //           ),
+              //           title: Text(
+              //             report['fileName']!,
+              //             style: const TextStyle(
+              //               fontSize: 16,
+              //               fontWeight: FontWeight.w400,
+              //             ),
+              //           ),
+              //           subtitle: Row(
+              //             crossAxisAlignment: CrossAxisAlignment.start,
+              //             children: [
+              //               Text(
+              //                 '${report['date']} - ',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   color: Colors.grey.shade600,
+              //                   fontWeight: FontWeight.w400,
+              //                 ),
+              //               ),
+              //               Text(
+              //                 '${report['size']}',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   color: Colors.grey.shade600,
+              //                   fontWeight: FontWeight.w400,
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //           trailing: Row(
+              //             mainAxisSize: MainAxisSize.min,
+              //             children: [
+              //               SizedBox(
+              //                 width: 40,
+              //                 child: IconButton(
+              //                   icon: Transform.rotate(
+              //                     angle: pi / 2,
+              //                     child: const Icon(
+              //                       Icons.arrow_circle_right_sharp,
+              //                       color: Colors.blue,
+              //                     ),
+              //                   ),
+              //                   onPressed: () {
+              //                     print("Download ${report['fileName']}");
+              //                   },
+              //                 ),
+              //               ),
+              //               SizedBox(
+              //                 width: 35,
+              //                 child: IconButton(
+              //                   icon: Icon(
+              //                     report['status'] == 'uploaded'
+              //                         ? Icons.cloud_done_rounded
+              //                         : Icons.cloud_off_rounded,
+              //                     color: report['status'] == 'uploaded'
+              //                         ? Colors.green
+              //                         : Colors.red,
+              //                   ),
+              //                   onPressed: () {
+              //                     print("Upload ${report['fileName']}");
+              //                   },
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //         ),
+              //         const Divider(),
+              //       ],
+              //     );
+              //   },
+              // ),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: pendingReports.length,
+                itemCount: catchFiles.length,
                 itemBuilder: (context, index) {
-                  final report = pendingReports[index];
+                  final file = catchFiles[index];
                   return Column(
                     children: [
                       ListTile(
+                        onTap: () => _openFile(file),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 0,
                           vertical: 0,
                         ),
                         leading: SvgPicture.asset(
-                          'assets/svg/csv.svg',
+                          file.path.endsWith('.csv')
+                              ? 'assets/svg/csv.svg'
+                              : 'assets/svg/pdf.svg',
                           width: 40,
                           height: 40,
                         ),
                         title: Text(
-                          report['fileName']!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          file.path.split('/').last,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                         subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${report['date']} - ',
+                              formatDate(file
+                                  .statSync()
+                                  .modified), // Display last modified date
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
+                            const SizedBox(
+                                width:
+                                    8), // Add some spacing between the date and file size
                             Text(
-                              '${report['size']}',
+                              formatFileSize(file
+                                  .statSync()
+                                  .size), // Display formatted file size
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -531,32 +688,21 @@ class _ReportsScreenState extends State<ReportsScreen> {
                             SizedBox(
                               width: 40,
                               child: IconButton(
-                                icon: Transform.rotate(
-                                  angle: pi / 2,
-                                  child: const Icon(
-                                    Icons.arrow_circle_right_sharp,
-                                    color: Colors.blue,
-                                  ),
+                                icon: const Icon(
+                                  Icons.arrow_circle_up_rounded,
+                                  color: Colors.blue,
                                 ),
                                 onPressed: () {
-                                  print("Download ${report['fileName']}");
+                                  _uploadFileToCloud(file);
                                 },
                               ),
                             ),
                             SizedBox(
                               width: 35,
                               child: IconButton(
-                                icon: Icon(
-                                  report['status'] == 'uploaded'
-                                      ? Icons.cloud_done_rounded
-                                      : Icons.cloud_off_rounded,
-                                  color: report['status'] == 'uploaded'
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                                onPressed: () {
-                                  print("Upload ${report['fileName']}");
-                                },
+                                icon: Icon(Icons.cloud_off_rounded,
+                                    color: Colors.red),
+                                onPressed: () {},
                               ),
                             ),
                           ],
@@ -917,6 +1063,40 @@ class _ReportsScreenState extends State<ReportsScreen> {
           ),
         );
       }
+    }
+  }
+
+  void _uploadFileToCloud(FileSystemEntity file) async {
+    try {
+      final path = file.path;
+      final fileName = path.split('/').last;
+      Directory? directory = await getExternalStorageDirectory();
+      final _file = File(path);
+      final externalStoragePath = '${directory?.path}/$fileName';
+      await _file.copy(externalStoragePath);
+      print("File copied to internal storage. $fileName");
+      final externalStorageFile = File(externalStoragePath);
+      if (await externalStorageFile.exists()) {
+        print("File exists in internal storage.");
+        await _file.delete();
+      } else {
+        print("File does not exist in internal storage.");
+      }
+
+      await storage.write(key: 'csvFilePath', value: externalStoragePath);
+      await storage.write(key: "deviceId", value: fileName.split('_').first);
+      await storage.write(key: "pageIndex", value: "1");
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SystemDetails(),
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error uploading file to cloud: $e");
     }
   }
 }

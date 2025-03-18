@@ -11,10 +11,9 @@ import 'dart:io';
 
 class GenertingReport extends StatefulWidget {
   final String fileUploadId;
-  final BluetoothDevice device;
+  final BluetoothDevice? device;
 
-  const GenertingReport(
-      {super.key, required this.fileUploadId, required this.device});
+  const GenertingReport({super.key, required this.fileUploadId, this.device});
 
   @override
   State<GenertingReport> createState() => _GenertingReportState();
@@ -89,6 +88,7 @@ class _GenertingReportState extends State<GenertingReport> {
   }
 
   Future<void> moveFileToCache() async {
+    final pageIndex = await storage.read(key: 'pageIndex');
     try {
       final path = await storage.read(key: 'csvFilePath');
 
@@ -131,12 +131,25 @@ class _GenertingReportState extends State<GenertingReport> {
     } finally {
       print(
           '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
-      Navigator.pushReplacement(
-        this.context,
-        MaterialPageRoute(
-          builder: (buildContext) => DeviceDetailsPage(device: widget.device),
-        ),
-      );
+      switch (pageIndex) {
+        case '0':
+          Navigator.pushReplacement(
+            this.context,
+            MaterialPageRoute(
+              builder: (buildContext) =>
+                  DeviceDetailsPage(device: widget.device),
+            ),
+          );
+          break;
+        case '1':
+          Navigator.pushReplacementNamed(this.context, '/reports');
+          break;
+        case '2':
+          Navigator.pushReplacementNamed(this.context, '/home');
+          break;
+        default:
+          print('Invalid page index: $pageIndex');
+      }
       print(
           '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
     }

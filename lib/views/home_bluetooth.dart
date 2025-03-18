@@ -6,8 +6,12 @@ import 'package:mesha_bluetooth_data_retrieval/views/device_details.dart';
 
 import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'dart:io';
+import 'package:path_provider/path_provider.dart';
+import 'package:open_file/open_file.dart';
 
 class BluetoothDeviceManager extends StatefulWidget {
   const BluetoothDeviceManager({super.key});
@@ -32,42 +36,178 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   List<BluetoothDevice> _pairedDevices = [];
   List<BluetoothDevice> _scannedDevices = [];
 
-  // Dummy data for reports
-  List<Map<String, String>> reports = [
-    // {
-    //   'fileName': 'Report 1',
-    //   'date': '2023-10-01',
-    //   'size': '1.2 MB',
-    //   'status': 'Pending'
-    // },
-    // {
-    //   'fileName': 'Report 2',
-    //   'date': '2023-10-02',
-    //   'size': '2.5 MB',
-    //   'status': 'Recent'
-    // },
-    // {
-    //   'fileName': 'Report 3',
-    //   'date': '2023-10-03',
-    //   'size': '3.0 MB',
-    //   'status': 'Pending'
-    // },
-    // {
-    //   'fileName': 'Report 4',
-    //   'date': '2023-10-04',
-    //   'size': '1.8 MB',
-    //   'status': 'Recent'
-    // },
-  ];
+  List<FileSystemEntity> files = [];
+  String activeFilter = 'pending'; // Default filter is 'all'
+  final Map<String, int> durationOptions = {
+    'Last 7 days': 7,
+    'Last 14 days': 14,
+    'Last 30 days': 30,
+  };
+  String?
+      selectedDuration; // Stores the selected duration key (e.g., "Last 7 days")
+  int?
+      selectedDurationDays; // Stores the selected duration value in days (e.g., 7)
+  List<FileSystemEntity> catchFiles = [];
 
   @override
   void initState() {
     super.initState();
     _loadUserName();
     _checkBluetoothStatus();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _showAlertDialog();
+    moveFileToCache().then((_) => fetchCatchFiles()).then((_) => {
+          if (catchFiles.isNotEmpty)
+            {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                _showAlertDialog();
+              })
+            }
+        });
+  }
+
+  Future<void> fetchCatchFiles() async {
+    final cacheDir = Directory(
+        '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+    final cacheFiles = cacheDir.listSync();
+
+    setState(() {
+      files = cacheFiles;
+      catchFiles = cacheFiles;
     });
+  }
+
+  Future<void> moveFileToCache() async {
+    try {
+      final path = await _secureStorage.read(key: 'csvFilePath');
+
+      // Check if the file path is available
+      if (path == null) {
+        print("No file path found.");
+      } else {
+        final file = File(path);
+
+        // Check if the file exists
+        if (await file.exists()) {
+          final fileName = path.split('/').last;
+          final cacheDir = Directory(
+              '/storage/emulated/0/Android/data/com.example.mesha_bluetooth_data_retrieval/cache');
+
+          // Ensure the cache directory exists
+          if (!await cacheDir.exists()) {
+            await cacheDir.create(recursive: true);
+          }
+
+          final cachePath = '${cacheDir.path}/$fileName';
+
+          // Move the file
+          await file.copy(cachePath);
+          final cacheFile = File(cachePath);
+
+          if (await cacheFile.exists()) {
+            print("File successfully copied to cache.");
+            await file.delete(); // Delete the original file
+            print("Original file deleted.");
+          } else {
+            print("File not found in cache directory after copying.");
+          }
+        } else {
+          print("File does not exist at path: $path");
+        }
+      }
+    } catch (e) {
+      print("Error moving file to cache: $e");
+    }
+  }
+
+  Future<void> fetchFiles() async {
+    final fetchedFiles = await getFilesFromDirectory();
+    setState(() {
+      files = fetchedFiles.where((file) {
+        if (activeFilter == 'duration' && selectedDurationDays != null) {
+          // Filter files based on the last modified date
+          final now = DateTime.now();
+          final lastModified = file.statSync().modified;
+          final difference = now.difference(lastModified).inDays;
+          return difference <=
+              selectedDurationDays!; // Show files modified within the selected duration
+        }
+        return false; // No other filters
+      }).toList();
+    });
+    print(files);
+  }
+
+  Future<List<FileSystemEntity>> getFilesFromDirectory() async {
+    Directory? directory = await getExternalStorageDirectory();
+    Directory? downloadsDirectory = await getDownloadsDirectory();
+
+    List<FileSystemEntity> files = [];
+
+    if (directory != null) {
+      files.addAll(directory.listSync());
+    }
+
+    if (downloadsDirectory != null) {
+      files.addAll(downloadsDirectory.listSync());
+    }
+
+    // Filter files by device name
+    files = files.where((file) {
+      // Exclude the downloads folder
+      if (file is Directory && file.path == downloadsDirectory?.path) {
+        return false;
+      }
+      return true; // Include all other files and folders
+    }).toList();
+
+    return files;
+  }
+
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) {
+      return '$bytes bytes'; // Less than 1 KB
+    } else if (bytes < 1024 * 1024) {
+      double kb = bytes / 1024;
+      return '${kb.toStringAsFixed(2)} KB'; // Between 1 KB and 1 MB
+    } else {
+      double mb = bytes / (1024 * 1024);
+      return '${mb.toStringAsFixed(2)} MB'; // Greater than 1 MB
+    }
+  }
+
+  String formatDate(DateTime date) {
+    return '${date.day}/${date.month}/${date.year}'; // Customize the date format as needed
+  }
+
+  Future<void> _showDurationOptions(BuildContext context) async {
+    final selectedOption = await showDialog<String>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Select Duration'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: durationOptions.keys.map((String key) {
+              return ListTile(
+                title: Text(key),
+                onTap: () {
+                  Navigator.pop(
+                      context, key); // Return the selected duration key
+                },
+              );
+            }).toList(),
+          ),
+        );
+      },
+    );
+
+    if (selectedOption != null) {
+      setState(() {
+        selectedDuration = selectedOption;
+        selectedDurationDays = durationOptions[selectedOption];
+        activeFilter = 'duration'; // Set the active filter to duration
+      });
+      fetchFiles(); // Refresh the file list
+    }
   }
 
   /// Check Bluetooth Status and Request Permissions
@@ -251,8 +391,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                "4 Pending Uploads!",
+              Text(
+                '${catchFiles.length} Pending Uploads!',
                 style: TextStyle(
                   fontSize: 24,
                   color: Colors.red,
@@ -292,7 +432,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                 Expanded(
                   child: TextButton(
                     onPressed: () {
-                      Navigator.of(context).pop();
+                      Navigator.pushReplacementNamed(this.context, '/reports');
+                      // Navigator.of(context).pop();
                     },
                     style: TextButton.styleFrom(
                       shape: RoundedRectangleBorder(
@@ -322,11 +463,11 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   }
 
   // Function to sort reports by status
-  void _sortReports(String status) {
-    setState(() {
-      reports.sort((a, b) => a['status'] == status ? -1 : 1);
-    });
-  }
+  // void _sortReports(String status) {
+  //   setState(() {
+  //     reports.sort((a, b) => a['status'] == status ? -1 : 1);
+  //   });
+  // }
 
   @override
   void dispose() {
@@ -414,104 +555,251 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                       fontWeight: FontWeight.w500,
                     ),
                   ),
-                  TextButton(
-                    onPressed: _handleReportAction,
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.transparent,
-                      padding: const EdgeInsets.all(0),
-                    ),
-                    child: const Text(
-                      'View all',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.black54,
-                        fontWeight: FontWeight.w400,
-                      ),
-                    ),
-                  ),
+                  // TextButton(
+                  //   onPressed: _handleReportAction,
+                  //   style: TextButton.styleFrom(
+                  //     backgroundColor: Colors.transparent,
+                  //     padding: const EdgeInsets.all(0),
+                  //   ),
+                  //   child: const Text(
+                  //     'View all',
+                  //     style: TextStyle(
+                  //       fontSize: 16,
+                  //       color: Colors.black54,
+                  //       fontWeight: FontWeight.w400,
+                  //     ),
+                  //   ),
+                  // ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 14),
               // Sorting Buttons
-              Row(
-                children: [
-                  IntrinsicWidth(
-                    child: OutlinedButton(
-                      onPressed: () => _sortReports('Pending'),
-                      style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.green)),
-                      child: const Text(
-                        'Pending',
-                        style: TextStyle(
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
+                  children: [
+                    // pending Button
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            activeFilter =
+                                'pending'; // Set filter to show pending files
+                          });
+                          fetchCatchFiles(); // Refresh the list
+                          print("pending button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'pending'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'pending'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'Pending',
+                          style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
-                            color: Colors.green),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  IntrinsicWidth(
-                    child: OutlinedButton(
-                      onPressed: () => _sortReports('Recent'),
-                      style: OutlinedButton.styleFrom(
-                        backgroundColor: Colors.grey.shade100,
-                        foregroundColor: Colors.transparent,
-                        side: BorderSide(
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-                      child: const Text(
-                        'Recent',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Colors.black87,
-                          fontWeight: FontWeight.w400,
+                            color: activeFilter == 'pending'
+                                ? Colors.green
+                                : Colors.black87,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    // Reports Button (PDF)
+
+                    const SizedBox(width: 8),
+                    // Duration Button
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          _showDurationOptions(
+                              context); // Show duration options
+                          print("Duration button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'duration'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'duration'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'Recent',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: activeFilter == 'duration'
+                                ? Colors.green
+                                : Colors.black87,
+                            fontWeight: FontWeight.w400,
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (selectedDuration !=
+                        null) // Display the selected duration
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Text(
+                          selectedDuration!,
+                          style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
               const SizedBox(height: 10),
               // List of Reports
+              // ListView.builder(
+              //   shrinkWrap: true,
+              //   physics: const NeverScrollableScrollPhysics(),
+              //   itemCount: reports.length,
+              //   itemBuilder: (context, index) {
+              //     final report = reports[index];
+              //     return Column(
+              //       children: [
+              //         ListTile(
+              //           contentPadding: const EdgeInsets.symmetric(
+              //             horizontal: 0,
+              //             vertical: 0,
+              //           ),
+              //           leading: SvgPicture.asset(
+              //             'assets/svg/pdf.svg',
+              //             width: 40,
+              //             height: 40,
+              //           ),
+              //           title: Text(
+              //             report['fileName']!,
+              //             style: const TextStyle(
+              //               fontSize: 16,
+              //               fontWeight: FontWeight.w400,
+              //             ),
+              //           ),
+              //           subtitle: Row(
+              //             crossAxisAlignment: CrossAxisAlignment.start,
+              //             children: [
+              //               Text(
+              //                 '${report['date']} - ',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   color: Colors.grey.shade600,
+              //                   fontWeight: FontWeight.w400,
+              //                 ),
+              //               ),
+              //               Text(
+              //                 '${report['size']}',
+              //                 style: TextStyle(
+              //                   fontSize: 14,
+              //                   color: Colors.grey.shade600,
+              //                   fontWeight: FontWeight.w400,
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //           trailing: Row(
+              //             mainAxisSize: MainAxisSize.min,
+              //             children: [
+              //               SizedBox(
+              //                 width: 40, // Adjust the width to reduce spacing
+              //                 child: IconButton(
+              //                   icon: Transform.rotate(
+              //                     angle: pi /
+              //                         2, // Rotate 90 degrees (pi/2 radians)
+              //                     child: const Icon(
+              //                       Icons.arrow_circle_right_sharp,
+              //                       color: Colors.blue,
+              //                     ),
+              //                   ),
+              //                   onPressed: () {
+              //                     print("Download ${report['fileName']}");
+              //                   },
+              //                 ),
+              //               ),
+              //               SizedBox(
+              //                 width: 35, // Adjust the width to reduce spacing
+              //                 child: IconButton(
+              //                   icon: Icon(
+              //                     report['status'] == 'Recent'
+              //                         ? Icons.cloud_done_rounded
+              //                         : Icons.cloud_off_rounded,
+              //                     color: report['status'] == 'Recent'
+              //                         ? Colors.green
+              //                         : Colors.red,
+              //                   ),
+              //                   onPressed: () {
+              //                     print("Upload ${report['fileName']}");
+              //                   },
+              //                 ),
+              //               ),
+              //             ],
+              //           ),
+              //         ),
+              //         const Divider(),
+              //       ],
+              //     );
+              //   },
+              // ),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
-                itemCount: reports.length,
+                itemCount: files.length,
                 itemBuilder: (context, index) {
-                  final report = reports[index];
+                  final file = files[index];
                   return Column(
                     children: [
                       ListTile(
+                        onTap: () => _openFile(file),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 0,
                           vertical: 0,
                         ),
                         leading: SvgPicture.asset(
-                          'assets/svg/pdf.svg',
+                          file.path.endsWith('.csv')
+                              ? 'assets/svg/csv.svg'
+                              : 'assets/svg/pdf.svg',
                           width: 40,
                           height: 40,
                         ),
                         title: Text(
-                          report['fileName']!,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          file.path.split('/').last,
                           style: const TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
                         subtitle: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              '${report['date']} - ',
+                              formatDate(file
+                                  .statSync()
+                                  .modified), // Display last modified date
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
+                            const SizedBox(
+                                width:
+                                    8), // Add some spacing between the date and file size
                             Text(
-                              '${report['size']}',
+                              formatFileSize(file
+                                  .statSync()
+                                  .size), // Display formatted file size
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -523,38 +811,52 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SizedBox(
-                              width: 40, // Adjust the width to reduce spacing
-                              child: IconButton(
-                                icon: Transform.rotate(
-                                  angle: pi /
-                                      2, // Rotate 90 degrees (pi/2 radians)
-                                  child: const Icon(
-                                    Icons.arrow_circle_right_sharp,
-                                    color: Colors.blue,
+                            activeFilter == "pending"
+                                ? SizedBox(
+                                    width: 40,
+                                    child: IconButton(
+                                      icon: const Icon(
+                                        Icons.arrow_circle_up_rounded,
+                                        color: Colors.blue,
+                                      ),
+                                      onPressed: () {
+                                        _uploadFileToCloud(file);
+                                      },
+                                    ),
+                                  )
+                                : SizedBox(
+                                    width: 40,
+                                    child: IconButton(
+                                      icon: Transform.rotate(
+                                        angle: pi /
+                                            2, // Rotate 90 degrees (pi/2 radians)
+                                        child: const Icon(
+                                          Icons.arrow_circle_right_sharp,
+                                          color: Colors.blue,
+                                        ),
+                                      ),
+                                      onPressed: () {
+                                        _openFile(file);
+                                      },
+                                    ),
                                   ),
-                                ),
-                                onPressed: () {
-                                  print("Download ${report['fileName']}");
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 35, // Adjust the width to reduce spacing
-                              child: IconButton(
-                                icon: Icon(
-                                  report['status'] == 'Recent'
-                                      ? Icons.cloud_done_rounded
-                                      : Icons.cloud_off_rounded,
-                                  color: report['status'] == 'Recent'
-                                      ? Colors.green
-                                      : Colors.red,
-                                ),
-                                onPressed: () {
-                                  print("Upload ${report['fileName']}");
-                                },
-                              ),
-                            ),
+                            activeFilter == "pending"
+                                ? SizedBox(
+                                    width: 35,
+                                    child: IconButton(
+                                      icon: Icon(Icons.cloud_off_rounded,
+                                          color: Colors.red),
+                                      onPressed: () {},
+                                    ),
+                                  )
+                                : SizedBox(
+                                    width: 35,
+                                    child: IconButton(
+                                      icon: Icon(Icons.cloud_done_rounded,
+                                          color: Colors.green),
+                                      onPressed: () {},
+                                    ),
+                                  ),
                           ],
                         ),
                       ),
@@ -570,14 +872,63 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
       bottomNavigationBar: BottomNavBar(currentIndex: 0),
     );
   }
+
+  void _openFile(FileSystemEntity file) async {
+    if (file is File) {
+      final result = await OpenFile.open(file.path);
+      if (result.type != ResultType.done) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Could not open file: ${file.path}'),
+          ),
+        );
+      }
+    }
+  }
+
+  void _uploadFileToCloud(FileSystemEntity file) async {
+    try {
+      final path = file.path;
+      final fileName = path.split('/').last;
+      Directory? directory = await getExternalStorageDirectory();
+      final _file = File(path);
+      final externalStoragePath = '${directory?.path}/$fileName';
+      await _file.copy(externalStoragePath);
+      print("File copied to internal storage. $fileName");
+      final externalStorageFile = File(externalStoragePath);
+      if (await externalStorageFile.exists()) {
+        print("File exists in internal storage.");
+        await _file.delete();
+      } else {
+        print("File does not exist in internal storage.");
+      }
+
+      await _secureStorage.write(
+          key: 'csvFilePath', value: externalStoragePath);
+      await _secureStorage.write(
+          key: "deviceId", value: fileName.split('_').first);
+      await _secureStorage.write(key: "pageIndex", value: "2");
+
+      if (mounted) {
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+            builder: (context) => SystemDetails(),
+          ),
+        );
+      }
+    } catch (e) {
+      print("Error uploading file to cloud: $e");
+    }
+  }
 }
 
 class DeviceCard extends StatefulWidget {
-  final BluetoothDevice device;
+  final BluetoothDevice? device;
 
   const DeviceCard({
     Key? key,
-    required this.device,
+    this.device,
   }) : super(key: key);
 
   @override
@@ -596,9 +947,9 @@ class _DeviceCardState extends State<DeviceCard> {
 
   /// Check if the device is already connected
   Future<void> _checkIfConnected() async {
-    final isConnected = await widget.device.isConnected;
+    final isConnected = await widget.device?.isConnected;
     setState(() {
-      _isConnected = isConnected;
+      _isConnected = isConnected!;
     });
   }
 
@@ -609,7 +960,7 @@ class _DeviceCardState extends State<DeviceCard> {
     });
 
     try {
-      await widget.device.connect();
+      await widget.device?.connect();
       setState(() {
         _isConnected = true;
         _isConnecting = false;
@@ -629,7 +980,7 @@ class _DeviceCardState extends State<DeviceCard> {
     });
 
     try {
-      await widget.device.disconnect();
+      await widget.device?.disconnect();
       setState(() {
         _isConnected = false;
         _isConnecting = false;
@@ -654,7 +1005,7 @@ class _DeviceCardState extends State<DeviceCard> {
             child: Text(
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              widget.device.platformName,
+              widget.device?.platformName ?? "Unknown Device",
               style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
             ),
           ),
@@ -688,7 +1039,7 @@ class _DeviceCardState extends State<DeviceCard> {
     );
   }
 
-  void _showDeviceInfo(BluetoothDevice device) {
+  void _showDeviceInfo(BluetoothDevice? device) {
     Navigator.of(context).push(
       MaterialPageRoute(
         builder: (context) => DeviceDetailsPage(device: device),

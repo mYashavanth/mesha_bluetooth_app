@@ -5,8 +5,8 @@ import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class SystemDetails extends StatefulWidget {
-  final BluetoothDevice device;
-  const SystemDetails({super.key, required this.device});
+  final BluetoothDevice? device;
+  const SystemDetails({super.key, this.device});
   @override
   State<SystemDetails> createState() => _SystemDetailsState();
 }

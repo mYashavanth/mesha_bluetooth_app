@@ -12,9 +12,9 @@ import 'package:path/path.dart';
 
 class UploadingData extends StatefulWidget {
   final Map<String, dynamic> data;
-  final BluetoothDevice device;
+  final BluetoothDevice? device;
 
-  const UploadingData({super.key, required this.data, required this.device});
+  const UploadingData({super.key, required this.data, this.device});
 
   @override
   State<UploadingData> createState() => _UploadingDataState();
@@ -75,6 +75,7 @@ class _UploadingDataState extends State<UploadingData> {
   }
 
   Future<void> moveFileToCache() async {
+    final pageIndex = await storage.read(key: 'pageIndex');
     try {
       final path = await storage.read(key: 'csvFilePath');
 
@@ -117,12 +118,26 @@ class _UploadingDataState extends State<UploadingData> {
     } finally {
       print(
           '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
-      Navigator.pushReplacement(
-        this.context,
-        MaterialPageRoute(
-          builder: (buildContext) => DeviceDetailsPage(device: widget.device),
-        ),
-      );
+      switch (pageIndex) {
+        case '0':
+          Navigator.pushReplacement(
+            this.context,
+            MaterialPageRoute(
+              builder: (buildContext) =>
+                  DeviceDetailsPage(device: widget.device),
+            ),
+          );
+          break;
+        case '1':
+          Navigator.pushReplacementNamed(this.context, '/reports');
+          break;
+        case '2':
+          Navigator.pushReplacementNamed(this.context, '/home');
+          break;
+        default:
+          print('Invalid page index: $pageIndex');
+      }
+
       print(
           '+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++');
     }
@@ -165,6 +180,8 @@ class _UploadingDataState extends State<UploadingData> {
 
   Future<void> uploadCsvFile(scannedUserInfoId) async {
     final csvFilePath = await storage.read(key: 'csvFilePath');
+    final savedDeviceId = await storage.read(
+        key: 'deviceId'); // Get the device ID saved in FlutterSecureStorage
     try {
       final csvFile = File(csvFilePath!);
       final csvBytes = await csvFile.readAsBytes();
@@ -180,7 +197,8 @@ class _UploadingDataState extends State<UploadingData> {
       );
 
       // Add fields
-      request.fields['deviceId'] = widget.device.platformName;
+      request.fields['deviceId'] =
+          widget.device?.platformName ?? savedDeviceId!;
       request.fields['scannedUserInfoId'] = scannedUserInfoId.toString();
       request.fields['token'] = token ?? '';
 

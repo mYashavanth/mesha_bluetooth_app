@@ -13,9 +13,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:open_file/open_file.dart';
 
 class DeviceDetailsPage extends StatefulWidget {
-  final BluetoothDevice device;
+  final BluetoothDevice? device;
 
-  const DeviceDetailsPage({super.key, required this.device});
+  const DeviceDetailsPage({super.key, this.device});
 
   @override
   State<DeviceDetailsPage> createState() => _DeviceDetailsPageState();
@@ -93,9 +93,9 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   @override
   void initState() {
     super.initState();
-    connectToDevice(widget.device);
+    connectToDevice(widget.device!);
     fetchFiles();
-    fetchCatchFiles();
+    moveFileToCache().then((_) => fetchCatchFiles());
   }
 
   Future<void> fetchCatchFiles() async {
@@ -106,7 +106,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
     // Filter files by device name
     cache_files = cacheFiles.where((file) {
-      return file.path.contains(widget.device.platformName);
+      return file.path.contains(widget.device?.platformName ?? '');
     }).toList();
     print('cache files: $cache_files');
     setState(() {
@@ -116,7 +116,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   Future<void> fetchFiles() async {
     final fetchedFiles =
-        await getFilesFromDirectory(widget.device.platformName);
+        await getFilesFromDirectory(widget.device?.platformName ?? '');
     setState(() {
       files = fetchedFiles.where((file) {
         if (activeFilter == 'pdf') {
@@ -220,8 +220,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   /// Discover Bluetooth Services
   void discoverServices() async {
-    List<BluetoothService> services = await widget.device.discoverServices();
-    for (var service in services) {
+    List<BluetoothService>? services = await widget.device?.discoverServices();
+    for (var service in services!) {
       for (var char in service.characteristics) {
         if (char.properties.write) {
           txCharacteristic = char;
@@ -323,7 +323,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
         DateFormat('yyyy-MM-dd_HH-mm-ss').format(DateTime.now());
 
     // Generate filename with platform name and date-time
-    fileName = "${widget.device.platformName}_$formattedDateTime.csv";
+    fileName = "${widget.device?.platformName}_$formattedDateTime.csv";
     final path = "${directory?.path}/$fileName";
 
     final file = File(path);
@@ -340,6 +340,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     );
     deleteData();
     if (mounted) {
+      await storage.write(key: 'pageIndex', value: '0');
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
@@ -660,7 +661,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Text(
-              widget.device.platformName,
+              widget.device?.platformName ?? 'Mesha BT Device',
               style: const TextStyle(
                 fontSize: 24,
                 fontWeight: FontWeight.w500,
@@ -1163,7 +1164,7 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Text(
-                '${reportsGenerated.length} reports generated.',
+                '${files.length} reports generated.',
                 style: const TextStyle(
                   fontWeight: FontWeight.w500,
                 ),
@@ -1270,6 +1271,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
       }
 
       await storage.write(key: 'csvFilePath', value: externalStoragePath);
+      await storage.write(key: "deviceId", value: fileName.split('_').first);
+      await storage.write(key: "pageIndex", value: "0");
 
       if (mounted) {
         Navigator.pushReplacement(

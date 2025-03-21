@@ -163,9 +163,11 @@ class _GenertingReportState extends State<GenertingReport> {
         'token': token,
         'scannedFileId': fileUploadId
       };
+      print('data to generate pdf: $data');
       final response = await http.post(
           Uri.parse('https://bt.meshaenergy.com/apis/app/get-pdf-report'),
           body: data);
+      print(response.body);
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
         print(responseData);
@@ -233,6 +235,7 @@ class _GenertingReportState extends State<GenertingReport> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80),
         child: AppBar(
+          automaticallyImplyLeading: false,
           title: const Text("Mesha BT device"),
           centerTitle: true,
           bottom: PreferredSize(
@@ -269,16 +272,22 @@ class _GenertingReportState extends State<GenertingReport> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Center(
-              child: Text(
-                generateDisplayText(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  generateDisplayText(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
+                const SizedBox(height: 20),
+                const Text(
+                    'Please do not press back, minimize or close this window.')
+              ],
             ),
           ),
           Padding(

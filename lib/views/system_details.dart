@@ -88,7 +88,11 @@ class _SystemDetailsState extends State<SystemDetails> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text("System Details")),
+      appBar: AppBar(
+        automaticallyImplyLeading: false,
+        title: Text("System Details"),
+        centerTitle: true,
+      ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(

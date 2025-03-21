@@ -223,7 +223,7 @@ class _UploadingDataState extends State<UploadingData> {
             fileUploadId = responseData['fileUploadId'].toString();
           });
           snackbarFunction('CSV file uploaded successfully!');
-          await storage.delete(key: 'csvFilePath');
+          // await storage.delete(key: 'csvFilePath');
           navigateToNextScreen(); // Navigate to the next screen
         } else {
           print("Failed to upload CSV: ${responseData['message']}");
@@ -282,6 +282,7 @@ class _UploadingDataState extends State<UploadingData> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80),
         child: AppBar(
+          automaticallyImplyLeading: false,
           title: const Text("Mesha BT device"),
           centerTitle: true,
           bottom: PreferredSize(
@@ -316,16 +317,22 @@ class _UploadingDataState extends State<UploadingData> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Center(
-              child: Text(
-                generateDisplayText(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  generateDisplayText(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
+                const SizedBox(height: 20),
+                const Text(
+                    'Please do not press back, minimize or close this window.')
+              ],
             ),
           ),
           Padding(

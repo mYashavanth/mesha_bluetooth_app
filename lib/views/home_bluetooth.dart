@@ -241,7 +241,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   Future<bool> _requestPermissions() async {
     var scanPermission = await Permission.bluetoothScan.request();
     var connectPermission = await Permission.bluetoothConnect.request();
-    var locationPermission = await Permission.location.request();
+    var locationPermission = await Permission.locationWhenInUse.request();
 
     if (scanPermission.isGranted &&
         connectPermission.isGranted &&
@@ -280,7 +280,8 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
       _scannedDevices.clear();
     });
 
-    FlutterBluePlus.startScan(timeout: Duration(seconds: 5));
+    FlutterBluePlus.startScan(
+        timeout: Duration(seconds: 5), androidUsesFineLocation: true);
 
     FlutterBluePlus.scanResults.listen((results) {
       if (mounted) {
@@ -458,9 +459,9 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   // Function to handle new device pairing
 
   // Function to handle report action button click
-  void _handleReportAction() {
-    print("Report action button clicked!");
-  }
+  // void _handleReportAction() {
+  //   print("Report action button clicked!");
+  // }
 
   // Function to sort reports by status
   // void _sortReports(String status) {

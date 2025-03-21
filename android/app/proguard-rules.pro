@@ -20,3 +20,4 @@
 -dontwarn com.google.android.play.core.splitinstall.**
 
 -keep class com.signify.hue.** { *; }
+-keep class com.lib.flutter_blue_plus.* { *; }

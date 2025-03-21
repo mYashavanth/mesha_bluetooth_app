@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:mesha_bluetooth_data_retrieval/components/bottom_navbar.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -10,27 +12,73 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  final storage = const FlutterSecureStorage();
   // Example user data
   final FlutterSecureStorage _secureStorage = FlutterSecureStorage();
   String userName = "User";
   final String userTag = "Pro";
-  final String email = "john.doe@example.com";
-  final String mobileNumber = "+1234567890";
-  final int dataRetrieved = 300;
+  String email = "john.doe@example.com";
+  // final String mobileNumber = "+1234567890";
+  int dataRetrieved = 300;
 
-  Future<void> _loadUserName() async {
-    String? storedUserName = await _secureStorage.read(key: 'username');
-    if (storedUserName != null) {
-      setState(() {
-        userName = storedUserName;
-      });
+  Future<void> _loadUserData() async {
+    String? token = await _secureStorage.read(key: 'userToken');
+    if (token != null) {
+      _fetchProfileData(token);
+      _fetchDataRetrieved(token);
+    }
+  }
+
+  Future<void> _fetchProfileData(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://bt.meshaenergy.com/apis/app-users/profile/details/$token'),
+      );
+
+      if (response.statusCode == 200) {
+        final profileData = json.decode(response.body);
+        await storage.write(key: 'username', value: profileData['username']);
+        setState(() {
+          userName = profileData['username'];
+          email = profileData['email'];
+        });
+      } else {
+        // Handle error response
+        print('Failed to load profile data');
+      }
+    } catch (e) {
+      // Handle network or parsing errors
+      print('Error fetching profile data: $e');
+    }
+  }
+
+  Future<void> _fetchDataRetrieved(String token) async {
+    try {
+      final response = await http.get(
+        Uri.parse(
+            'https://bt.meshaenergy.com/apis/app/reports/total-scan-by-app-user/$token'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          dataRetrieved = data['no_scans_till_now'];
+        });
+      } else {
+        // Handle error response
+        print('Failed to load data retrieved');
+      }
+    } catch (e) {
+      // Handle network or parsing errors
+      print('Error fetching data retrieved: $e');
     }
   }
 
   @override
   void initState() {
     super.initState();
-    _loadUserName();
+    _loadUserData();
   }
 
   // Function to show the support dialog
@@ -61,7 +109,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const Icon(Icons.phone, color: Colors.green),
                         title: const Text("Call"),
                         subtitle: const Text(
-                          "Available 24/7",
+                          "9AM - 6PM IST",
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
@@ -76,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         leading: const Icon(Icons.email, color: Colors.green),
                         title: const Text("Email us about an issue"),
                         subtitle: const Text(
-                          "8 AM-12 AM IST",
+                          "Available 24/7",
                           style: TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.w400,
@@ -288,22 +336,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                       fontWeight: FontWeight.bold,
                                     ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 8, vertical: 4),
-                                    decoration: BoxDecoration(
-                                      color: Colors.green,
-                                      borderRadius: BorderRadius.circular(12),
-                                    ),
-                                    child: Text(
-                                      userTag,
-                                      style: const TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ),
+                                  // const SizedBox(width: 8),
+                                  // Container(
+                                  //   padding: const EdgeInsets.symmetric(
+                                  //       horizontal: 8, vertical: 4),
+                                  //   decoration: BoxDecoration(
+                                  //     color: Colors.green,
+                                  //     borderRadius: BorderRadius.circular(12),
+                                  //   ),
+                                  //   child: Text(
+                                  //     userTag,
+                                  //     style: const TextStyle(
+                                  //       color: Colors.white,
+                                  //       fontSize: 12,
+                                  //     ),
+                                  //   ),
+                                  // ),
                                 ],
                               ),
                             ],
@@ -336,7 +384,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       children: [
                         Expanded(
                           child: Text(
-                            '$email | $mobileNumber',
+                            email,
                             style: TextStyle(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w400,

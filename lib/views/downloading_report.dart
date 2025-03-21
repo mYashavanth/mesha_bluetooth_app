@@ -111,6 +111,7 @@ class _DownloadingReportState extends State<DownloadingReport> {
   }
 
   void navigateToNextScreen() async {
+    await storage.delete(key: 'csvFilePath');
     final pageIndex = await storage.read(key: 'pageIndex');
     print("navigation");
     switch (pageIndex) {
@@ -153,6 +154,7 @@ class _DownloadingReportState extends State<DownloadingReport> {
       appBar: PreferredSize(
         preferredSize: const Size.fromHeight(80),
         child: AppBar(
+          automaticallyImplyLeading: false,
           title: const Text("Mesha BT device"),
           centerTitle: true,
           bottom: PreferredSize(
@@ -189,16 +191,22 @@ class _DownloadingReportState extends State<DownloadingReport> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Expanded(
-            child: Center(
-              child: Text(
-                generateDisplayText(),
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  generateDisplayText(),
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-                textAlign: TextAlign.center,
-              ),
+                const SizedBox(height: 20),
+                const Text(
+                    'Please do not press back, minimize or close this window.')
+              ],
             ),
           ),
           Padding(

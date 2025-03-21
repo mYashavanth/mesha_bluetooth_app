@@ -244,7 +244,8 @@ class _LoginFormState extends State<LoginForm> {
             await storage.write(key: 'userToken', value: responseData['token']);
             await storage.write(
                 key: 'username', value: responseData['username']);
-            Navigator.pushNamed(context, '/home');
+            Navigator.of(context).pushNamedAndRemoveUntil(
+                '/home', (Route<dynamic> route) => false);
           } else {
             setState(() {
               _errorMessage = responseData['message'];

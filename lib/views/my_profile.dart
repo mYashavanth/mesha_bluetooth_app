@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class MyProfile extends StatefulWidget {
   const MyProfile({super.key});
@@ -11,45 +14,89 @@ class _MyProfileState extends State<MyProfile> {
   // Controllers for text fields
   final TextEditingController nameController = TextEditingController();
   final TextEditingController emailController = TextEditingController();
-  final TextEditingController mobileController = TextEditingController();
-  final TextEditingController placeController = TextEditingController();
-
-  // Variables to hold the initial user data
-  String initialName = "User";
-  String initialEmail = "johndoe@example.com";
-  String initialMobile = "1234567890";
-  String initialPlace = "New York";
 
   final _formKey = GlobalKey<FormState>();
+  final storage = const FlutterSecureStorage();
 
   @override
   void initState() {
     super.initState();
-    // Initialize controllers with user data
-    nameController.text = initialName;
-    emailController.text = initialEmail;
-    mobileController.text = initialMobile;
-    placeController.text = initialPlace;
+    fetchUserData();
+  }
+
+  // Function to fetch user data from the API
+  Future<void> fetchUserData() async {
+    try {
+      final token = await storage.read(key: 'userToken');
+      final response = await http.get(
+        Uri.parse(
+            'https://bt.meshaenergy.com/apis/app-users/profile/details/$token'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = json.decode(response.body);
+        setState(() {
+          nameController.text = data['username'];
+          emailController.text = data['email'];
+        });
+      } else {
+        // Handle error
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Failed to fetch user data")),
+        );
+      }
+    } catch (e) {
+      // Handle error
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Error: $e")),
+      );
+    }
   }
 
   // Function to handle update
-  void updateProfile() {
+  void updateProfile() async {
     if (_formKey.currentState!.validate()) {
-      String updatedName = nameController.text.trim();
-      String updatedEmail = emailController.text.trim();
-      String updatedMobile = mobileController.text.trim();
-      String updatedPlace = placeController.text.trim();
+      try {
+        final token = await storage.read(key: 'userToken');
+        String updatedName = nameController.text.trim();
+        String updatedEmail = emailController.text.trim();
+        Map<String, dynamic> data = {};
+        data['token'] = token;
+        data['username'] = updatedName;
+        data['email'] = updatedEmail;
 
-      // Simulate saving data and show a success message
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Profile updated successfully!")),
-      );
-
-      // Print updated values for debugging
-      print("Updated Name: $updatedName");
-      print("Updated Email: $updatedEmail");
-      print("Updated Mobile: $updatedMobile");
-      print("Updated Place: $updatedPlace");
+        final response = await http.post(
+          Uri.parse(
+              'https://bt.meshaenergy.com/apis/app/update-email-username'),
+          body: data,
+        );
+        print(response.body);
+        if (response.statusCode == 200) {
+          // ScaffoldMessenger.of(context).showSnackBar(
+          //   const SnackBar(content: Text("Profile updated successfully!")),
+          // );
+          final responseData = jsonDecode(response.body);
+          if (responseData['errFlag'] == 0) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(responseData['message'])),
+            );
+          } else {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text(responseData['message'])),
+            );
+          }
+        } else {
+          // Handle error
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to update profile")),
+          );
+        }
+      } catch (e) {
+        // Handle error
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error: $e")),
+        );
+      }
     }
   }
 
@@ -117,42 +164,6 @@ class _MyProfileState extends State<MyProfile> {
                         },
                       ),
                       const SizedBox(height: 16),
-
-                      // Mobile Number Field
-                      TextFormField(
-                        controller: mobileController,
-                        decoration: const InputDecoration(
-                          labelText: "Mobile Number",
-                          border: OutlineInputBorder(),
-                        ),
-                        keyboardType: TextInputType.phone,
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Mobile number cannot be empty';
-                          } else if (value.length != 10 ||
-                              !RegExp(r'^[0-9]+$').hasMatch(value)) {
-                            return 'Mobile number should be 10 digits long';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Place Field
-                      TextFormField(
-                        controller: placeController,
-                        decoration: const InputDecoration(
-                          labelText: "Place",
-                          border: OutlineInputBorder(),
-                        ),
-                        validator: (value) {
-                          if (value == null || value.isEmpty) {
-                            return 'Place cannot be empty';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: 16),
                     ],
                   ),
                 ),
@@ -166,9 +177,20 @@ class _MyProfileState extends State<MyProfile> {
         child: TextButton(
           onPressed: updateProfile,
           style: TextButton.styleFrom(
-            minimumSize: const Size(double.infinity, 50),
+            backgroundColor: const Color(0xFF00B562),
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10.0),
+            ),
           ),
-          child: const Text("Update Profile"),
+          child: const Text(
+            "Update Profile",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );

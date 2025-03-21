@@ -90,61 +90,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
     }
   }
 
-  // Dummy data for pendingReports and reportsGenerated
-  List<Map<String, String>> pendingReports = [
-    // {
-    //   'fileName': 'Report 1',
-    //   'date': '2023-10-01',
-    //   'size': '1.2 MB',
-    //   'status': 'Pending'
-    // },
-    // {
-    //   'fileName': 'Report 3',
-    //   'date': '2023-10-03',
-    //   'size': '3.0 MB',
-    //   'status': 'Pending'
-    // },
-  ];
-
-  List<Map<String, String>> reportsGenerated = [
-    {
-      'fileName': 'Report 1',
-      'date': '2023-10-01',
-      'size': '1.2 MB',
-      'status': 'uploaded'
-    },
-    {
-      'fileName': 'Report 3',
-      'date': '2023-10-03',
-      'size': '3.0 MB',
-      'status': 'uploaded'
-    },
-    {
-      'fileName': 'Report 1',
-      'date': '2023-10-01',
-      'size': '1.2 MB',
-      'status': 'uploaded'
-    },
-    {
-      'fileName': 'Report 3',
-      'date': '2023-10-03',
-      'size': '3.0 MB',
-      'status': 'uploaded'
-    },
-    {
-      'fileName': 'Report 1',
-      'date': '2023-10-01',
-      'size': '1.2 MB',
-      'status': 'uploaded'
-    },
-    {
-      'fileName': 'Report 3',
-      'date': '2023-10-03',
-      'size': '3.0 MB',
-      'status': 'uploaded'
-    },
-  ];
-
   Future<void> fetchFiles() async {
     final fetchedFiles = await getFilesFromDirectory();
     setState(() {
@@ -537,94 +482,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   fontWeight: FontWeight.w500,
                 ),
               ),
-              // ListView.builder(
-              //   shrinkWrap: true,
-              //   physics: const NeverScrollableScrollPhysics(),
-              //   itemCount: pendingReports.length,
-              //   itemBuilder: (context, index) {
-              //     final report = pendingReports[index];
-              //     return Column(
-              //       children: [
-              //         ListTile(
-              //           contentPadding: const EdgeInsets.symmetric(
-              //             horizontal: 0,
-              //             vertical: 0,
-              //           ),
-              //           leading: SvgPicture.asset(
-              //             'assets/svg/csv.svg',
-              //             width: 40,
-              //             height: 40,
-              //           ),
-              //           title: Text(
-              //             report['fileName']!,
-              //             style: const TextStyle(
-              //               fontSize: 16,
-              //               fontWeight: FontWeight.w400,
-              //             ),
-              //           ),
-              //           subtitle: Row(
-              //             crossAxisAlignment: CrossAxisAlignment.start,
-              //             children: [
-              //               Text(
-              //                 '${report['date']} - ',
-              //                 style: TextStyle(
-              //                   fontSize: 14,
-              //                   color: Colors.grey.shade600,
-              //                   fontWeight: FontWeight.w400,
-              //                 ),
-              //               ),
-              //               Text(
-              //                 '${report['size']}',
-              //                 style: TextStyle(
-              //                   fontSize: 14,
-              //                   color: Colors.grey.shade600,
-              //                   fontWeight: FontWeight.w400,
-              //                 ),
-              //               ),
-              //             ],
-              //           ),
-              //           trailing: Row(
-              //             mainAxisSize: MainAxisSize.min,
-              //             children: [
-              //               SizedBox(
-              //                 width: 40,
-              //                 child: IconButton(
-              //                   icon: Transform.rotate(
-              //                     angle: pi / 2,
-              //                     child: const Icon(
-              //                       Icons.arrow_circle_right_sharp,
-              //                       color: Colors.blue,
-              //                     ),
-              //                   ),
-              //                   onPressed: () {
-              //                     print("Download ${report['fileName']}");
-              //                   },
-              //                 ),
-              //               ),
-              //               SizedBox(
-              //                 width: 35,
-              //                 child: IconButton(
-              //                   icon: Icon(
-              //                     report['status'] == 'uploaded'
-              //                         ? Icons.cloud_done_rounded
-              //                         : Icons.cloud_off_rounded,
-              //                     color: report['status'] == 'uploaded'
-              //                         ? Colors.green
-              //                         : Colors.red,
-              //                   ),
-              //                   onPressed: () {
-              //                     print("Upload ${report['fileName']}");
-              //                   },
-              //                 ),
-              //               ),
-              //             ],
-              //           ),
-              //         ),
-              //         const Divider(),
-              //       ],
-              //     );
-              //   },
-              // ),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
@@ -1020,38 +877,6 @@ class _ReportsScreenState extends State<ReportsScreen> {
       ),
     );
   }
-
-// Helper method to build buttons
-  // Widget _buildButton(String text, int index) {
-  //   // Check if this button is selected
-  //   bool isActive = _selectedIndex == index;
-
-  //   return IntrinsicWidth(
-  //     child: OutlinedButton(
-  //       onPressed: () =>
-  //           _onButtonPressed(index, text), // Change active state on press
-  //       style: OutlinedButton.styleFrom(
-  //         backgroundColor:
-  //             Colors.transparent, // Transparent for inactive green buttons
-  //         foregroundColor: isActive
-  //             ? Colors.green // White text for active button
-  //             : Colors.black87, // Black text for inactive gray button
-  //         side: BorderSide(
-  //             color: isActive ? Colors.green : Colors.grey), // Border color
-  //       ),
-  //       child: Text(
-  //         text,
-  //         style: TextStyle(
-  //           fontSize: 16,
-  //           fontWeight: FontWeight.w400,
-  //           color: isActive
-  //               ? Colors.green // White text for active button
-  //               : Colors.black87,
-  //         ),
-  //       ),
-  //     ),
-  //   );
-  // }
 
   void _openFile(FileSystemEntity file) async {
     if (file is File) {

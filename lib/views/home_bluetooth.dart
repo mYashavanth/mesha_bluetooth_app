@@ -454,21 +454,6 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     );
   }
 
-  // Function to handle connection state change
-
-  // Function to handle new device pairing
-
-  // Function to handle report action button click
-  // void _handleReportAction() {
-  //   print("Report action button clicked!");
-  // }
-
-  // Function to sort reports by status
-  // void _sortReports(String status) {
-  //   setState(() {
-  //     reports.sort((a, b) => a['status'] == status ? -1 : 1);
-  //   });
-  // }
 
   @override
   void dispose() {
@@ -662,96 +647,6 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                 ),
               ),
               const SizedBox(height: 10),
-              // List of Reports
-              // ListView.builder(
-              //   shrinkWrap: true,
-              //   physics: const NeverScrollableScrollPhysics(),
-              //   itemCount: reports.length,
-              //   itemBuilder: (context, index) {
-              //     final report = reports[index];
-              //     return Column(
-              //       children: [
-              //         ListTile(
-              //           contentPadding: const EdgeInsets.symmetric(
-              //             horizontal: 0,
-              //             vertical: 0,
-              //           ),
-              //           leading: SvgPicture.asset(
-              //             'assets/svg/pdf.svg',
-              //             width: 40,
-              //             height: 40,
-              //           ),
-              //           title: Text(
-              //             report['fileName']!,
-              //             style: const TextStyle(
-              //               fontSize: 16,
-              //               fontWeight: FontWeight.w400,
-              //             ),
-              //           ),
-              //           subtitle: Row(
-              //             crossAxisAlignment: CrossAxisAlignment.start,
-              //             children: [
-              //               Text(
-              //                 '${report['date']} - ',
-              //                 style: TextStyle(
-              //                   fontSize: 14,
-              //                   color: Colors.grey.shade600,
-              //                   fontWeight: FontWeight.w400,
-              //                 ),
-              //               ),
-              //               Text(
-              //                 '${report['size']}',
-              //                 style: TextStyle(
-              //                   fontSize: 14,
-              //                   color: Colors.grey.shade600,
-              //                   fontWeight: FontWeight.w400,
-              //                 ),
-              //               ),
-              //             ],
-              //           ),
-              //           trailing: Row(
-              //             mainAxisSize: MainAxisSize.min,
-              //             children: [
-              //               SizedBox(
-              //                 width: 40, // Adjust the width to reduce spacing
-              //                 child: IconButton(
-              //                   icon: Transform.rotate(
-              //                     angle: pi /
-              //                         2, // Rotate 90 degrees (pi/2 radians)
-              //                     child: const Icon(
-              //                       Icons.arrow_circle_right_sharp,
-              //                       color: Colors.blue,
-              //                     ),
-              //                   ),
-              //                   onPressed: () {
-              //                     print("Download ${report['fileName']}");
-              //                   },
-              //                 ),
-              //               ),
-              //               SizedBox(
-              //                 width: 35, // Adjust the width to reduce spacing
-              //                 child: IconButton(
-              //                   icon: Icon(
-              //                     report['status'] == 'Recent'
-              //                         ? Icons.cloud_done_rounded
-              //                         : Icons.cloud_off_rounded,
-              //                     color: report['status'] == 'Recent'
-              //                         ? Colors.green
-              //                         : Colors.red,
-              //                   ),
-              //                   onPressed: () {
-              //                     print("Upload ${report['fileName']}");
-              //                   },
-              //                 ),
-              //               ),
-              //             ],
-              //           ),
-              //         ),
-              //         const Divider(),
-              //       ],
-              //     );
-              //   },
-              // ),
               ListView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),

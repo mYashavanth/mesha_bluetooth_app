@@ -454,7 +454,6 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     );
   }
 
-
   @override
   void dispose() {
     FlutterBluePlus.stopScan();
@@ -909,8 +908,16 @@ class _DeviceCardState extends State<DeviceCard> {
             mainAxisSize: MainAxisSize.min,
             children: [
               if (_isConnecting)
-                CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+                Padding(
+                  padding: const EdgeInsets.only(right: 4.0),
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.0,
+                      valueColor: AlwaysStoppedAnimation<Color>(Colors.green),
+                    ),
+                  ),
                 )
               else
                 Text(

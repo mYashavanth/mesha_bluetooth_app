@@ -181,7 +181,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
             setState(() {
               messages.add("Received: $receivedData");
               _retrievedData = _retrievedData! + receivedData;
-              print(_retrievedData);
+              // print(_retrievedData);
+
               // Check for "NO RECORDS" and trigger sendData() after 1 minute
               if (_retrievedData!.trim() == "NO RECORDS") {
                 // print("Waiting for 1 minute before sending *GET\$...");
@@ -201,11 +202,13 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   ),
                 );
                 isDataRetrievalComplete = true;
+                Navigator.of(context).pop(); // Close the dialog
               }
               // Check if the received data indicates the end of transmission
               if (_retrievedData!.contains("END")) {
                 isDataRetrievalComplete = true;
                 convertAndSaveCSV(); // Automatically convert and save CSV
+                Navigator.of(context).pop(); // Close the dialog
               }
             });
           });
@@ -308,6 +311,41 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     _retrievedData = "";
     isDataRetrievalComplete = false; // Reset the flag
     sendData("*GET\$");
+    _showRetrievingDataDialog(); // Show the dialog
+  }
+
+  void _showRetrievingDataDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Retrieving Data'),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Center(
+                  child: Text(
+                    'Please wait while data is being retrieved...',
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+                SizedBox(height: 20),
+                Center(child: CircularProgressIndicator()),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+          ],
+        );
+      },
+    );
   }
 
   /// Send *DELETE$ Command

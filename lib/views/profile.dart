@@ -19,7 +19,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   final String userTag = "Pro";
   String email = "john.doe@example.com";
   // final String mobileNumber = "+1234567890";
-  int dataRetrieved = 300;
+  int dataRetrieved = 0;
 
   Future<void> _loadUserData() async {
     String? token = await _secureStorage.read(key: 'userToken');

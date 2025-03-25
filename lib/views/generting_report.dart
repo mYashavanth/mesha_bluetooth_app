@@ -226,7 +226,7 @@ class _GenertingReportState extends State<GenertingReport> {
 
   String generateDisplayText() {
     String dots = '.' * dotCount;
-    return "Generting report$dots";
+    return "Generating report$dots";
   }
 
   @override

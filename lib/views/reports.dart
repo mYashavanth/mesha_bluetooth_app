@@ -7,6 +7,7 @@ import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:share_plus/share_plus.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -585,8 +586,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                   ),
                   IconButton(
                     onPressed: () {
-                      _showDateTimePicker(
-                          context); // Open the date-time picker bottom sheet
+                      // _showDateTimePicker(context);
+                      print("Date-time picker clicked!");
                     },
                     icon: const Icon(
                       Icons.calendar_today_rounded,
@@ -756,14 +757,13 @@ class _ReportsScreenState extends State<ReportsScreen> {
                 itemCount: files.length,
                 itemBuilder: (context, index) {
                   final file = files[index];
+
                   return Column(
                     children: [
                       ListTile(
                         onTap: () => _openFile(file),
                         contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 0,
-                          vertical: 0,
-                        ),
+                            horizontal: 0, vertical: 0),
                         leading: SvgPicture.asset(
                           file.path.endsWith('.csv')
                               ? 'assets/svg/csv.svg'
@@ -776,62 +776,76 @@ class _ReportsScreenState extends State<ReportsScreen> {
                           overflow: TextOverflow.ellipsis,
                           file.path.split('/').last,
                           style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                          ),
+                              fontSize: 16, fontWeight: FontWeight.w400),
                         ),
                         subtitle: Row(
                           children: [
                             Text(
                               formatDate(file
                                   .statSync()
-                                  .modified), // Display last modified date
+                                  .modified), // Last modified date
                               style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w400,
-                              ),
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w400),
                             ),
-                            const SizedBox(
-                                width:
-                                    8), // Add some spacing between the date and file size
+                            const SizedBox(width: 8),
                             Text(
-                              formatFileSize(file
-                                  .statSync()
-                                  .size), // Display formatted file size
+                              formatFileSize(file.statSync().size), // File size
                               style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w400,
-                              ),
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w400),
                             ),
                           ],
                         ),
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            SizedBox(
-                              width: 40,
-                              child: IconButton(
-                                icon: Transform.rotate(
-                                  angle: pi / 2,
-                                  child: const Icon(
+                            IconButton(
+                              icon: Transform.rotate(
+                                angle: pi / 2,
+                                child: const Icon(
                                     Icons.arrow_circle_right_sharp,
-                                    color: Colors.blue,
+                                    color: Colors.blue),
+                              ),
+                              onPressed: () => _openFile(file),
+                            ),
+                            IconButton(
+                              icon: const Icon(Icons.cloud_done_rounded,
+                                  color: Colors.green),
+                              onPressed: () {},
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'share') {
+                                  _shareFile(file as File);
+                                } else if (value == 'delete') {
+                                  _deleteFile(file as File, index);
+                                }
+                              },
+                              itemBuilder: (BuildContext context) => [
+                                const PopupMenuItem(
+                                  value: 'share',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.share, color: Colors.blue),
+                                      SizedBox(width: 10),
+                                      Text('Share'),
+                                    ],
                                   ),
                                 ),
-                                onPressed: () {
-                                  _openFile(file);
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 35,
-                              child: IconButton(
-                                icon: Icon(Icons.cloud_done_rounded,
-                                    color: Colors.green),
-                                onPressed: () {},
-                              ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, color: Colors.red),
+                                      SizedBox(width: 10),
+                                      Text('Delete'),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -923,5 +937,49 @@ class _ReportsScreenState extends State<ReportsScreen> {
     } catch (e) {
       print("Error uploading file to cloud: $e");
     }
+  }
+
+  // Function to share the file
+  void _shareFile(File file) {
+    Share.shareXFiles([XFile(file.path)],
+        text: 'Check out this file: ${file.path.split('/').last}');
+  }
+
+// Function to delete the file
+  void _deleteFile(File file, int index) async {
+    bool confirmDelete = await _showDeleteConfirmationDialog();
+    if (confirmDelete) {
+      try {
+        await file.delete();
+        files.removeAt(index); // Remove from list
+        // Trigger UI update
+        (context as Element).markNeedsBuild();
+      } catch (e) {
+        print("Error deleting file: $e");
+      }
+    }
+  }
+
+// Function to show confirmation dialog before deleting
+  Future<bool> _showDeleteConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete File'),
+            content: const Text('Are you sure you want to delete this file?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child:
+                    const Text('Delete', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }

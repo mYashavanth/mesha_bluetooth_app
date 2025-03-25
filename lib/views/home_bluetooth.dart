@@ -12,6 +12,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'dart:io';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 
 class BluetoothDeviceManager extends StatefulWidget {
   const BluetoothDeviceManager({super.key});
@@ -178,37 +179,37 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     return '${date.day}/${date.month}/${date.year}'; // Customize the date format as needed
   }
 
-  Future<void> _showDurationOptions(BuildContext context) async {
-    final selectedOption = await showDialog<String>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Select Duration'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: durationOptions.keys.map((String key) {
-              return ListTile(
-                title: Text(key),
-                onTap: () {
-                  Navigator.pop(
-                      context, key); // Return the selected duration key
-                },
-              );
-            }).toList(),
-          ),
-        );
-      },
-    );
+  // Future<void> _showDurationOptions(BuildContext context) async {
+  //   final selectedOption = await showDialog<String>(
+  //     context: context,
+  //     builder: (BuildContext context) {
+  //       return AlertDialog(
+  //         title: Text('Select Duration'),
+  //         content: Column(
+  //           mainAxisSize: MainAxisSize.min,
+  //           children: durationOptions.keys.map((String key) {
+  //             return ListTile(
+  //               title: Text(key),
+  //               onTap: () {
+  //                 Navigator.pop(
+  //                     context, key); // Return the selected duration key
+  //               },
+  //             );
+  //           }).toList(),
+  //         ),
+  //       );
+  //     },
+  //   );
 
-    if (selectedOption != null) {
-      setState(() {
-        selectedDuration = selectedOption;
-        selectedDurationDays = durationOptions[selectedOption];
-        activeFilter = 'duration'; // Set the active filter to duration
-      });
-      fetchFiles(); // Refresh the file list
-    }
-  }
+  //   if (selectedOption != null) {
+  //     setState(() {
+  //       selectedDuration = selectedOption;
+  //       selectedDurationDays = durationOptions[selectedOption];
+  //       activeFilter = 'duration'; // Set the active filter to duration
+  //     });
+  //     fetchFiles(); // Refresh the file list
+  //   }
+  // }
 
   /// Check Bluetooth Status and Request Permissions
   Future<void> _checkBluetoothStatus() async {
@@ -604,8 +605,13 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                     IntrinsicWidth(
                       child: OutlinedButton(
                         onPressed: () {
-                          _showDurationOptions(
-                              context); // Show duration options
+                          // _showDurationOptions(context);
+                          setState(() {
+                            selectedDurationDays = 7;
+                            selectedDuration = 'Last 7 days';
+                            activeFilter = 'duration';
+                          });
+                          fetchFiles();
                           print("Duration button clicked!");
                         },
                         style: OutlinedButton.styleFrom(
@@ -752,6 +758,41 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                       onPressed: () {},
                                     ),
                                   ),
+                            activeFilter == "pending"
+                                ? SizedBox()
+                                : PopupMenuButton<String>(
+                                    onSelected: (value) {
+                                      if (value == 'share') {
+                                        _shareFile(file as File);
+                                      } else if (value == 'delete') {
+                                        _deleteFile(file as File, index);
+                                      }
+                                    },
+                                    itemBuilder: (BuildContext context) => [
+                                      const PopupMenuItem(
+                                        value: 'share',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.share,
+                                                color: Colors.blue),
+                                            SizedBox(width: 10),
+                                            Text('Share'),
+                                          ],
+                                        ),
+                                      ),
+                                      const PopupMenuItem(
+                                        value: 'delete',
+                                        child: Row(
+                                          children: [
+                                            Icon(Icons.delete,
+                                                color: Colors.red),
+                                            SizedBox(width: 10),
+                                            Text('Delete'),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
                           ],
                         ),
                       ),
@@ -815,6 +856,50 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     } catch (e) {
       print("Error uploading file to cloud: $e");
     }
+  }
+
+  // Function to share the file
+  void _shareFile(File file) {
+    Share.shareXFiles([XFile(file.path)],
+        text: 'Check out this file: ${file.path.split('/').last}');
+  }
+
+// Function to delete the file
+  void _deleteFile(File file, int index) async {
+    bool confirmDelete = await _showDeleteConfirmationDialog();
+    if (confirmDelete) {
+      try {
+        await file.delete();
+        files.removeAt(index); // Remove from list
+        // Trigger UI update
+        (context as Element).markNeedsBuild();
+      } catch (e) {
+        print("Error deleting file: $e");
+      }
+    }
+  }
+
+// Function to show confirmation dialog before deleting
+  Future<bool> _showDeleteConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete File'),
+            content: const Text('Are you sure you want to delete this file?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child:
+                    const Text('Delete', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }
 

@@ -11,6 +11,7 @@ import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:open_file/open_file.dart';
+import 'package:share_plus/share_plus.dart';
 
 class DeviceDetailsPage extends StatefulWidget {
   final BluetoothDevice? device;
@@ -168,50 +169,49 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   void discoverServices() async {
     List<BluetoothService>? services = await widget.device?.discoverServices();
     for (var service in services!) {
-      for (var char in service.characteristics) {
-        if (char.properties.write) {
-          txCharacteristic = char;
-        }
-        if (char.properties.notify || char.properties.read) {
-          rxCharacteristic = char;
-          rxCharacteristic!.setNotifyValue(true);
-          _rxSubscription = rxCharacteristic!.lastValueStream.listen((value) {
-            if (!mounted) return; // Check if the widget is still mounted
-            String receivedData = String.fromCharCodes(value);
-            setState(() {
-              messages.add("Received: $receivedData");
-              _retrievedData = _retrievedData! + receivedData;
-              // print(_retrievedData);
+      if (service.uuid == Guid("0000FFF0-0000-1000-8000-00805F9B34FB")) {
+        for (var char in service.characteristics) {
+          if (char.uuid == Guid("0000FFF2-0000-1000-8000-00805F9B34FB") &&
+              char.properties.write) {
+            txCharacteristic = char;
+          }
+          if (char.uuid == Guid("0000FFF1-0000-1000-8000-00805F9B34FB") &&
+              (char.properties.notify || char.properties.read)) {
+            rxCharacteristic = char;
+            rxCharacteristic!.setNotifyValue(true);
+            _rxSubscription = rxCharacteristic!.lastValueStream.listen((value) {
+              if (!mounted) return; // Check if the widget is still mounted
+              String receivedData = String.fromCharCodes(value);
+              setState(() {
+                print("Received: $receivedData");
+                messages.add("Received: $receivedData");
+                _retrievedData = _retrievedData! + receivedData;
+                // print(_retrievedData);
 
-              // Check for "NO RECORDS" and trigger sendData() after 1 minute
-              if (_retrievedData!.trim() == "NO RECORDS") {
-                // print("Waiting for 1 minute before sending *GET\$...");
-                // Future.delayed(const Duration(minutes: 1), () {
-                //   if (mounted) {
-                //     print("Sending *GET\$ command...");
-                //     sendData("*GET\$");
-                //   }
-                // });
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Text(
-                        'No Records Found. Please wait for 1 minute before Retirving Data...'),
-                    backgroundColor: Color(0xFF204433),
-                    showCloseIcon: true,
-                    behavior: SnackBarBehavior.floating, // Make it float on top
-                  ),
-                );
-                isDataRetrievalComplete = true;
-                Navigator.of(context).pop(); // Close the dialog
-              }
-              // Check if the received data indicates the end of transmission
-              if (_retrievedData!.contains("END")) {
-                isDataRetrievalComplete = true;
-                convertAndSaveCSV(); // Automatically convert and save CSV
-                Navigator.of(context).pop(); // Close the dialog
-              }
+                // Check for "NO RECORDS" and trigger sendData() after 1 minute
+                if (_retrievedData!.trim() == "NO RECORDS") {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(
+                          'No Records Found. Please wait for 1 minute before Retirving Data...'),
+                      backgroundColor: Color(0xFF204433),
+                      showCloseIcon: true,
+                      behavior:
+                          SnackBarBehavior.floating, // Make it float on top
+                    ),
+                  );
+                  isDataRetrievalComplete = true;
+                  Navigator.of(context).pop(); // Close the dialog
+                }
+                // Check if the received data indicates the end of transmission
+                if (_retrievedData!.contains("END")) {
+                  isDataRetrievalComplete = true;
+                  convertAndSaveCSV(); // Automatically convert and save CSV
+                  Navigator.of(context).pop(); // Close the dialog
+                }
+              });
             });
-          });
+          }
         }
       }
     }
@@ -238,10 +238,17 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
     List<Map<String, dynamic>> allData = [];
 
-    for (int i = 1; i < rows.length - 2; i++) {
+    for (int i = 0; i < rows.length - 2; i++) {
       if (rows[i].isEmpty) continue; // Skip empty rows
       if (rows[i].contains("SN")) continue;
       List<String> row = rows[i].split(',');
+      if (row.length == 5) {
+        headers = 'SN,Date,Time,B1,C'.split(',');
+      } else if (row.length == 6) {
+        headers = 'SN,Date,Time,B1,C,T'.split(',');
+      } else if (row.length == 7) {
+        headers = 'SN,Date,Time,B1,B2,C,T'.split(',');
+      }
       if (row.length < headers.length) {
         continue;
       }
@@ -780,8 +787,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                   ),
                   IconButton(
                     onPressed: () {
-                      _showDateTimePicker(
-                          context); // Open the date-time picker bottom sheet
+                      // _showDateTimePicker(context);
+                      print("Date-time picker clicked!");
                     },
                     icon: const Icon(
                       Icons.calendar_today_rounded,
@@ -937,12 +944,43 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                               ),
                             ),
                             SizedBox(
-                              width: 35,
+                              width: 30,
                               child: IconButton(
                                 icon: Icon(Icons.cloud_done_rounded,
                                     color: Colors.green),
                                 onPressed: () {},
                               ),
+                            ),
+                            PopupMenuButton<String>(
+                              onSelected: (value) {
+                                if (value == 'share') {
+                                  _shareFile(file as File);
+                                } else if (value == 'delete') {
+                                  _deleteFile(file as File, index);
+                                }
+                              },
+                              itemBuilder: (BuildContext context) => [
+                                const PopupMenuItem(
+                                  value: 'share',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.share, color: Colors.blue),
+                                      SizedBox(width: 10),
+                                      Text('Share'),
+                                    ],
+                                  ),
+                                ),
+                                const PopupMenuItem(
+                                  value: 'delete',
+                                  child: Row(
+                                    children: [
+                                      Icon(Icons.delete, color: Colors.red),
+                                      SizedBox(width: 10),
+                                      Text('Delete'),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                           ],
                         ),
@@ -1092,5 +1130,49 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     } catch (e) {
       print("Error uploading file to cloud: $e");
     }
+  }
+
+  // Function to share the file
+  void _shareFile(File file) {
+    Share.shareXFiles([XFile(file.path)],
+        text: 'Check out this file: ${file.path.split('/').last}');
+  }
+
+// Function to delete the file
+  void _deleteFile(File file, int index) async {
+    bool confirmDelete = await _showDeleteConfirmationDialog();
+    if (confirmDelete) {
+      try {
+        await file.delete();
+        files.removeAt(index); // Remove from list
+        // Trigger UI update
+        (context as Element).markNeedsBuild();
+      } catch (e) {
+        print("Error deleting file: $e");
+      }
+    }
+  }
+
+// Function to show confirmation dialog before deleting
+  Future<bool> _showDeleteConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Delete File'),
+            content: const Text('Are you sure you want to delete this file?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child:
+                    const Text('Delete', style: TextStyle(color: Colors.red)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }

@@ -785,7 +785,7 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                                         child: Row(
                                           children: [
                                             Icon(Icons.delete,
-                                                color: Colors.red),
+                                                color: Color(0xFFb91c1c)),
                                             SizedBox(width: 10),
                                             Text('Delete'),
                                           ],

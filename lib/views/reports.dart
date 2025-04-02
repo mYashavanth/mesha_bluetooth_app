@@ -839,7 +839,8 @@ class _ReportsScreenState extends State<ReportsScreen> {
                                   value: 'delete',
                                   child: Row(
                                     children: [
-                                      Icon(Icons.delete, color: Colors.red),
+                                      Icon(Icons.delete,
+                                          color: Color(0xFFb91c1c)),
                                       SizedBox(width: 10),
                                       Text('Delete'),
                                     ],

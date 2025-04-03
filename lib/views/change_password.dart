@@ -219,12 +219,23 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ),
       bottomNavigationBar: Padding(
         padding: const EdgeInsets.all(16.0),
-        child: ElevatedButton(
+        child: TextButton(
           onPressed: resetPassword,
-          style: ElevatedButton.styleFrom(
-            minimumSize: Size(double.infinity, 50),
+          style: TextButton.styleFrom(
+            backgroundColor: const Color(0xFF00B562),
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(10.0),
+            ),
           ),
-          child: Text("Reset Password"),
+          child: Text(
+            "Reset Password",
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
         ),
       ),
     );

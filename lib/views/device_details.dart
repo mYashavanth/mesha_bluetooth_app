@@ -36,6 +36,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   List<FileSystemEntity> files = [];
   List<FileSystemEntity> catchFiles = [];
   String activeFilter = 'pdf'; // Default filter
+  final Set<int> selectedIndices = {}; // Track selected file indices
+  bool isMultiSelectEnabled = false; // Track if multi-select mode is active
 
   @override
   void initState() {
@@ -637,6 +639,72 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     );
   }
 
+  void toggleSelection(int index) {
+    setState(() {
+      if (selectedIndices.contains(index)) {
+        selectedIndices.remove(index);
+      } else {
+        selectedIndices.add(index);
+      }
+
+      // Disable multi-select mode if no files are selected
+      if (selectedIndices.isEmpty) {
+        isMultiSelectEnabled = false;
+      }
+    });
+  }
+
+  void enableMultiSelect(int index) {
+    setState(() {
+      isMultiSelectEnabled = true;
+      selectedIndices.add(index);
+    });
+  }
+
+  void shareSelectedFiles() {
+    final selectedFiles =
+        selectedIndices.map((index) => files[index] as File).toList();
+    if (selectedFiles.isNotEmpty) {
+      Share.shareXFiles(
+        selectedFiles.map((file) => XFile(file.path)).toList(),
+        text: 'Check out these files!',
+      );
+    }
+  }
+
+  void deleteSelectedFiles() async {
+    final confirmDelete = await _showDeleteConfirmationDialog();
+    if (confirmDelete) {
+      setState(() {
+        // Iterate through selected indices and delete files
+        final filesToDelete =
+            selectedIndices.map((index) => files[index]).toList();
+        for (var file in filesToDelete) {
+          if (file is File) {
+            try {
+              file.deleteSync(); // Delete the file from its stored location
+              print("File deleted: ${file.path}");
+            } catch (e) {
+              print("Error deleting file: $e");
+            }
+          }
+        }
+
+        // Remove the deleted files from the list
+        files = files
+            .asMap()
+            .entries
+            .where((entry) => !selectedIndices.contains(entry.key))
+            .map((entry) => entry.value)
+            .toList();
+
+        // Clear the selected indices and exit multi-select mode
+        selectedIndices.clear();
+        isMultiSelectEnabled = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _rxSubscription?.cancel(); // Cancel the subscription
@@ -645,443 +713,542 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        centerTitle: true,
-        title: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              widget.device?.platformName ?? 'Mesha BT Device',
-              style: const TextStyle(
-                fontSize: 24,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            const SizedBox(height: 4),
-            const Text(
-              'Device Paired',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.green,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-          ],
-        ),
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Pending Reports Section
-              const Text(
-                'Pending Reports',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: catchFiles.length,
-                itemBuilder: (context, index) {
-                  final file = catchFiles[index];
-                  return Column(
-                    children: [
-                      ListTile(
-                        onTap: () => _openFile(file),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 0,
-                          vertical: 0,
-                        ),
-                        leading: SvgPicture.asset(
-                          file.path.endsWith('.csv')
-                              ? 'assets/svg/csv.svg'
-                              : 'assets/svg/pdf.svg',
-                          width: 40,
-                          height: 40,
-                        ),
-                        title: Text(
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          file.path.split('/').last,
-                          style: const TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                        subtitle: Row(
-                          children: [
-                            Text(
-                              formatDate(file
-                                  .statSync()
-                                  .modified), // Display last modified date
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                            const SizedBox(
-                                width:
-                                    8), // Add some spacing between the date and file size
-                            Text(
-                              formatFileSize(file
-                                  .statSync()
-                                  .size), // Display formatted file size
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 40,
-                              child: IconButton(
-                                icon: const Icon(
-                                  Icons.arrow_circle_up_rounded,
-                                  color: Colors.blue,
-                                ),
-                                onPressed: () {
-                                  _uploadFileToCloud(file);
-                                },
-                              ),
-                            ),
-                            SizedBox(
-                              width: 35,
-                              child: IconButton(
-                                icon: Icon(Icons.cloud_off_rounded,
-                                    color: Colors.red),
-                                onPressed: () {},
-                              ),
-                            ),
-                          ],
-                        ),
+    return PopScope(
+      canPop: !isMultiSelectEnabled,
+      onPopInvoked: (bool didPop) {
+        if (isMultiSelectEnabled) {
+          setState(() {
+            isMultiSelectEnabled = false;
+            selectedIndices.clear();
+          });
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          centerTitle: true,
+          title: isMultiSelectEnabled
+              ? Text('${selectedIndices.length} selected')
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      widget.device?.platformName ?? 'Mesha BT Device',
+                      style: const TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w500,
                       ),
-                      const Divider(),
-                    ],
-                  );
-                },
-              ),
-              const SizedBox(height: 10),
-
-              // Reports Generated Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Reports Generated',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
                     ),
+                    const SizedBox(height: 4),
+                    const Text(
+                      'Device Paired',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.green,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ],
+                ),
+          actions: isMultiSelectEnabled
+              ? [
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    onPressed: shareSelectedFiles,
                   ),
                   IconButton(
-                    onPressed: () {
-                      // _showDateTimePicker(context);
-                      print("Date-time picker clicked!");
-                    },
-                    icon: const Icon(
-                      Icons.calendar_today_rounded,
-                      size: 24,
-                      color: Colors.black54,
-                    ),
+                    icon: const Icon(Icons.delete),
+                    onPressed: deleteSelectedFiles,
                   ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              // Sorting Buttons
-              Row(
-                children: [
-                  IntrinsicWidth(
-                    child: OutlinedButton(
+                ]
+              : null,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Pending Reports Section
+                const Text(
+                  'Pending Reports',
+                  style: TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: catchFiles.length,
+                  itemBuilder: (context, index) {
+                    final file = catchFiles[index];
+                    return Column(
+                      children: [
+                        ListTile(
+                          onTap: () => _openFile(file),
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 0,
+                            vertical: 0,
+                          ),
+                          leading: SvgPicture.asset(
+                            file.path.endsWith('.csv')
+                                ? 'assets/svg/csv.svg'
+                                : 'assets/svg/pdf.svg',
+                            width: 40,
+                            height: 40,
+                          ),
+                          title: Text(
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            file.path.split('/').last,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                          subtitle: Row(
+                            children: [
+                              Text(
+                                formatDate(file
+                                    .statSync()
+                                    .modified), // Display last modified date
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                              const SizedBox(
+                                  width:
+                                      8), // Add some spacing between the date and file size
+                              Text(
+                                formatFileSize(file
+                                    .statSync()
+                                    .size), // Display formatted file size
+                                style: TextStyle(
+                                  fontSize: 14,
+                                  color: Colors.grey.shade600,
+                                  fontWeight: FontWeight.w400,
+                                ),
+                              ),
+                            ],
+                          ),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              SizedBox(
+                                width: 40,
+                                child: IconButton(
+                                  icon: const Icon(
+                                    Icons.arrow_circle_up_rounded,
+                                    color: Colors.blue,
+                                  ),
+                                  onPressed: () {
+                                    _uploadFileToCloud(file);
+                                  },
+                                ),
+                              ),
+                              SizedBox(
+                                width: 35,
+                                child: IconButton(
+                                  icon: Icon(Icons.cloud_off_rounded,
+                                      color: Colors.red),
+                                  onPressed: () {},
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const Divider(),
+                      ],
+                    );
+                  },
+                ),
+                const SizedBox(height: 10),
+
+                // Reports Generated Section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Reports Generated',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                    IconButton(
                       onPressed: () {
-                        setState(() {
-                          activeFilter = 'pdf'; // Set filter to PDF
-                        });
-                        fetchFiles(); // Refresh the list
-                        print("Reports button clicked!");
+                        // _showDateTimePicker(context);
+                        print("Date-time picker clicked!");
                       },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: activeFilter == 'pdf'
-                              ? Colors.green
-                              : Colors.grey.shade400,
-                        ),
-                        backgroundColor: activeFilter == 'pdf'
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.transparent,
-                      ),
-                      child: Text(
-                        'Reports',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.w400,
-                          color: activeFilter == 'pdf'
-                              ? Colors.green
-                              : Colors.black87,
-                        ),
+                      icon: const Icon(
+                        Icons.calendar_today_rounded,
+                        size: 24,
+                        color: Colors.black54,
                       ),
                     ),
-                  ),
-                  const SizedBox(width: 8),
-                  IntrinsicWidth(
-                    child: OutlinedButton(
-                      onPressed: () {
-                        setState(() {
-                          activeFilter = 'csv'; // Set filter to CSV
-                        });
-                        fetchFiles(); // Refresh the list
-                        print("CSV button clicked!");
-                      },
-                      style: OutlinedButton.styleFrom(
-                        side: BorderSide(
-                          color: activeFilter == 'csv'
-                              ? Colors.green
-                              : Colors.grey.shade400,
+                  ],
+                ),
+                const SizedBox(height: 10),
+                // Sorting Buttons
+                Row(
+                  children: [
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            activeFilter = 'pdf'; // Set filter to PDF
+                          });
+                          fetchFiles(); // Refresh the list
+                          print("Reports button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'pdf'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'pdf'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
                         ),
-                        backgroundColor: activeFilter == 'csv'
-                            ? Colors.green.withOpacity(0.1)
-                            : Colors.transparent,
-                      ),
-                      child: Text(
-                        'CSV',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: activeFilter == 'csv'
-                              ? Colors.green
-                              : Colors.black87,
-                          fontWeight: FontWeight.w400,
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: files.length,
-                itemBuilder: (context, index) {
-                  final file = files[index];
-                  return Column(
-                    children: [
-                      ListTile(
-                        onTap: () => _openFile(file),
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 0,
-                          vertical: 0,
-                        ),
-                        leading: SvgPicture.asset(
-                          file.path.endsWith('.csv')
-                              ? 'assets/svg/csv.svg'
-                              : 'assets/svg/pdf.svg',
-                          width: 40,
-                          height: 40,
-                        ),
-                        title: Text(
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          file.path.split('/').last,
-                          style: const TextStyle(
+                        child: Text(
+                          'Reports',
+                          style: TextStyle(
                             fontSize: 16,
+                            fontWeight: FontWeight.w400,
+                            color: activeFilter == 'pdf'
+                                ? Colors.green
+                                : Colors.black87,
+                          ),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IntrinsicWidth(
+                      child: OutlinedButton(
+                        onPressed: () {
+                          setState(() {
+                            activeFilter = 'csv'; // Set filter to CSV
+                          });
+                          fetchFiles(); // Refresh the list
+                          print("CSV button clicked!");
+                        },
+                        style: OutlinedButton.styleFrom(
+                          side: BorderSide(
+                            color: activeFilter == 'csv'
+                                ? Colors.green
+                                : Colors.grey.shade400,
+                          ),
+                          backgroundColor: activeFilter == 'csv'
+                              ? Colors.green.withOpacity(0.1)
+                              : Colors.transparent,
+                        ),
+                        child: Text(
+                          'CSV',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: activeFilter == 'csv'
+                                ? Colors.green
+                                : Colors.black87,
                             fontWeight: FontWeight.w400,
                           ),
                         ),
-                        subtitle: Row(
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: files.length,
+                  itemBuilder: (context, index) {
+                    final file = files[index];
+                    final isSelected = selectedIndices.contains(index);
+
+                    return GestureDetector(
+                      onLongPress: () => enableMultiSelect(index),
+                      onTap: () {
+                        if (isMultiSelectEnabled) {
+                          toggleSelection(index);
+                        } else {
+                          _openFile(file);
+                        }
+                      },
+                      child: Container(
+                        color: isSelected
+                            ? Colors.grey.shade300
+                            : Colors.transparent,
+                        child: Column(
                           children: [
-                            Text(
-                              formatDate(file
-                                  .statSync()
-                                  .modified), // Display last modified date
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w400,
+                            ListTile(
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 0,
+                                vertical: 0,
                               ),
-                            ),
-                            const SizedBox(
-                                width:
-                                    8), // Add some spacing between the date and file size
-                            Text(
-                              formatFileSize(file
-                                  .statSync()
-                                  .size), // Display formatted file size
-                              style: TextStyle(
-                                fontSize: 14,
-                                color: Colors.grey.shade600,
-                                fontWeight: FontWeight.w400,
-                              ),
-                            ),
-                          ],
-                        ),
-                        trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            SizedBox(
-                              width: 40,
-                              child: IconButton(
-                                icon: Transform.rotate(
-                                  angle: pi / 2,
-                                  child: const Icon(
-                                    Icons.arrow_circle_right_sharp,
-                                    color: Colors.blue,
-                                  ),
+                              leading: isMultiSelectEnabled
+                                  ? Checkbox(
+                                      value: isSelected,
+                                      onChanged: (value) {
+                                        toggleSelection(index);
+                                      },
+                                      shape:
+                                          const CircleBorder(), // Circular checkbox
+                                      materialTapTargetSize:
+                                          MaterialTapTargetSize
+                                              .shrinkWrap, // Reduce size
+                                      visualDensity: VisualDensity
+                                          .compact, // Compact layout
+                                    )
+                                  : SvgPicture.asset(
+                                      file.path.endsWith('.csv')
+                                          ? 'assets/svg/csv.svg'
+                                          : 'assets/svg/pdf.svg',
+                                      width: 40,
+                                      height: 40,
+                                    ),
+                              title: Text(
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                file.path.split('/').last,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w400,
                                 ),
-                                onPressed: () {
-                                  _openFile(file);
-                                },
                               ),
-                            ),
-                            SizedBox(
-                              width: 30,
-                              child: IconButton(
-                                icon: Icon(Icons.cloud_done_rounded,
-                                    color: Colors.green),
-                                onPressed: () {},
+                              subtitle: Row(
+                                children: [
+                                  Text(
+                                    formatDate(file
+                                        .statSync()
+                                        .modified), // Display last modified date
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                      width:
+                                          8), // Add some spacing between the date and file size
+                                  Text(
+                                    formatFileSize(file
+                                        .statSync()
+                                        .size), // Display formatted file size
+                                    style: TextStyle(
+                                      fontSize: 14,
+                                      color: Colors.grey.shade600,
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                ],
                               ),
+                              trailing: isMultiSelectEnabled
+                                  ? null // Hide trailing icons in multi-select mode
+                                  : Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        SizedBox(
+                                          width: 40,
+                                          child: IconButton(
+                                            icon: Transform.rotate(
+                                              angle: pi / 2,
+                                              child: const Icon(
+                                                Icons.arrow_circle_right_sharp,
+                                                color: Colors.blue,
+                                              ),
+                                            ),
+                                            onPressed: () {
+                                              _openFile(file);
+                                            },
+                                          ),
+                                        ),
+                                        SizedBox(
+                                          width: 30,
+                                          child: IconButton(
+                                            icon: Icon(Icons.cloud_done_rounded,
+                                                color: Colors.green),
+                                            onPressed: () {},
+                                          ),
+                                        ),
+                                        PopupMenuButton<String>(
+                                          onSelected: (value) {
+                                            if (value == 'share') {
+                                              _shareFile(file as File);
+                                            } else if (value == 'delete') {
+                                              _deleteFile(file as File, index);
+                                            }
+                                          },
+                                          itemBuilder: (BuildContext context) =>
+                                              [
+                                            const PopupMenuItem(
+                                              value: 'share',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.share,
+                                                      color: Colors.blue),
+                                                  SizedBox(width: 10),
+                                                  Text('Share'),
+                                                ],
+                                              ),
+                                            ),
+                                            const PopupMenuItem(
+                                              value: 'delete',
+                                              child: Row(
+                                                children: [
+                                                  Icon(Icons.delete,
+                                                      color: Color(0xFFb91c1c)),
+                                                  SizedBox(width: 10),
+                                                  Text('Delete'),
+                                                ],
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
                             ),
-                            PopupMenuButton<String>(
-                              onSelected: (value) {
-                                if (value == 'share') {
-                                  _shareFile(file as File);
-                                } else if (value == 'delete') {
-                                  _deleteFile(file as File, index);
-                                }
-                              },
-                              itemBuilder: (BuildContext context) => [
-                                const PopupMenuItem(
-                                  value: 'share',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.share, color: Colors.blue),
-                                      SizedBox(width: 10),
-                                      Text('Share'),
-                                    ],
-                                  ),
-                                ),
-                                const PopupMenuItem(
-                                  value: 'delete',
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.delete,
-                                          color: Color(0xFFb91c1c)),
-                                      SizedBox(width: 10),
-                                      Text('Delete'),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ),
+                            const Divider(),
                           ],
                         ),
                       ),
-                      const Divider(),
-                    ],
-                  );
-                },
-              ),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            top: BorderSide(
-              color: Colors.grey.shade300,
-              width: 1.0,
+                    );
+                  },
+                ),
+              ],
             ),
           ),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(8.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '${files.length} reports generated.',
-                style: const TextStyle(
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                'Cloud data will be archived and deleted after 30 days.',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: const Color(0xFF848F8B),
-                ),
-              ),
-              const SizedBox(height: 8.0),
-              Row(
-                children: [
-                  Expanded(
-                    child: TextButton(
-                      onPressed: deleteData,
-                      style: TextButton.styleFrom(
-                        backgroundColor: Colors.grey.shade300,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                      ),
-                      child: Text(
-                        isDeleteConfirmed ? "Loading..." : "Start Test",
-                        style: TextStyle(
-                          fontSize: 20.0,
-                          fontWeight: FontWeight.w500,
-                        ),
-                      ),
+        bottomNavigationBar: isMultiSelectEnabled
+            ? Container(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Colors.grey.shade300,
+                      width: 1.0,
                     ),
                   ),
-                  const SizedBox(width: 10.0),
-                  Expanded(
-                    child: TextButton(
-                      onPressed: () => {
-                        retrieveData(),
-                        // Navigator.push(
-                        //   context,
-                        //   MaterialPageRoute(
-                        //     builder: (context) => const RetrievingData(),
-                        //   ),
-                        // ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          selectedIndices.clear();
+                          selectedIndices.addAll(
+                              List.generate(files.length, (index) => index));
+                        });
                       },
-                      style: TextButton.styleFrom(
-                        backgroundColor: const Color(0xFF00B562),
-                        padding: const EdgeInsets.symmetric(vertical: 16.0),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10.0),
-                        ),
-                      ),
-                      child: Text(
-                        // 'Retrieve Data',
-                        isDataRetrievalComplete
-                            ? "Retrieve Data"
-                            : "Retrieving Data",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 20,
+                      icon: const Icon(Icons.select_all),
+                      label: const Text('Select All'),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          isMultiSelectEnabled = false;
+                          selectedIndices.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.cancel),
+                      label: const Text('Cancel'),
+                    ),
+                  ],
+                ),
+              )
+            : Container(
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Colors.grey.shade300,
+                      width: 1.0,
+                    ),
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        '${files.length} reports generated.',
+                        style: const TextStyle(
                           fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ),
+                      Text(
+                        'Cloud data will be archived and deleted after 30 days.',
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: const Color(0xFF848F8B),
+                        ),
+                      ),
+                      const SizedBox(height: 8.0),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: TextButton(
+                              onPressed: deleteData,
+                              style: TextButton.styleFrom(
+                                backgroundColor: Colors.grey.shade300,
+                                foregroundColor: Colors.black,
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                              ),
+                              child: Text(
+                                isDeleteConfirmed ? "Loading..." : "Start Test",
+                                style: TextStyle(
+                                  fontSize: 20.0,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 10.0),
+                          Expanded(
+                            child: TextButton(
+                              onPressed: () => {
+                                retrieveData(),
+                                // Navigator.push(
+                                //   context,
+                                //   MaterialPageRoute(
+                                //     builder: (context) => const RetrievingData(),
+                                //   ),
+                                // ),
+                              },
+                              style: TextButton.styleFrom(
+                                backgroundColor: const Color(0xFF00B562),
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 16.0),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(10.0),
+                                ),
+                              ),
+                              child: Text(
+                                // 'Retrieve Data',
+                                isDataRetrievalComplete
+                                    ? "Retrieve Data"
+                                    : "Retrieving Data",
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 20,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
+                ),
               ),
-            ],
-          ),
-        ),
       ),
     );
   }

@@ -50,6 +50,9 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
       selectedDurationDays; // Stores the selected duration value in days (e.g., 7)
   List<FileSystemEntity> catchFiles = [];
 
+  final Set<int> selectedIndices = {}; // Track selected file indices
+  bool isMultiSelectEnabled = false; // Track if multi-select mode is active
+
   @override
   void initState() {
     super.initState();
@@ -178,38 +181,6 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
   String formatDate(DateTime date) {
     return '${date.day}/${date.month}/${date.year}'; // Customize the date format as needed
   }
-
-  // Future<void> _showDurationOptions(BuildContext context) async {
-  //   final selectedOption = await showDialog<String>(
-  //     context: context,
-  //     builder: (BuildContext context) {
-  //       return AlertDialog(
-  //         title: Text('Select Duration'),
-  //         content: Column(
-  //           mainAxisSize: MainAxisSize.min,
-  //           children: durationOptions.keys.map((String key) {
-  //             return ListTile(
-  //               title: Text(key),
-  //               onTap: () {
-  //                 Navigator.pop(
-  //                     context, key); // Return the selected duration key
-  //               },
-  //             );
-  //           }).toList(),
-  //         ),
-  //       );
-  //     },
-  //   );
-
-  //   if (selectedOption != null) {
-  //     setState(() {
-  //       selectedDuration = selectedOption;
-  //       selectedDurationDays = durationOptions[selectedOption];
-  //       activeFilter = 'duration'; // Set the active filter to duration
-  //     });
-  //     fetchFiles(); // Refresh the file list
-  //   }
-  // }
 
   /// Check Bluetooth Status and Request Permissions
   Future<void> _checkBluetoothStatus() async {
@@ -455,6 +426,73 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
     );
   }
 
+  void toggleSelection(int index) {
+    setState(() {
+      if (selectedIndices.contains(index)) {
+        selectedIndices.remove(index);
+      } else {
+        selectedIndices.add(index);
+      }
+
+      // Disable multi-select mode if no files are selected
+      if (selectedIndices.isEmpty) {
+        isMultiSelectEnabled = false;
+      }
+    });
+  }
+
+  void enableMultiSelect(int index) {
+    setState(() {
+      isMultiSelectEnabled = true;
+      selectedIndices.add(index);
+    });
+  }
+
+  void shareSelectedFiles() {
+    print("Selected files: $files");
+    final selectedFiles =
+        selectedIndices.map((index) => files[index] as File).toList();
+    if (selectedFiles.isNotEmpty) {
+      Share.shareXFiles(
+        selectedFiles.map((file) => XFile(file.path)).toList(),
+        text: 'Check out these files!',
+      );
+    }
+  }
+
+  void deleteSelectedFiles() async {
+    final confirmDelete = await _showDeleteConfirmationDialog();
+    if (confirmDelete) {
+      setState(() {
+        // Iterate through selected indices and delete files
+        final filesToDelete =
+            selectedIndices.map((index) => files[index]).toList();
+        for (var file in filesToDelete) {
+          if (file is File) {
+            try {
+              file.deleteSync(); // Delete the file from its stored location
+              print("File deleted: ${file.path}");
+            } catch (e) {
+              print("Error deleting file: $e");
+            }
+          }
+        }
+
+        // Remove the deleted files from the list
+        files = files
+            .asMap()
+            .entries
+            .where((entry) => !selectedIndices.contains(entry.key))
+            .map((entry) => entry.value)
+            .toList();
+
+        // Clear the selected indices and exit multi-select mode
+        selectedIndices.clear();
+        isMultiSelectEnabled = false;
+      });
+    }
+  }
+
   @override
   void dispose() {
     FlutterBluePlus.stopScan();
@@ -465,202 +503,364 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisAlignment: MainAxisAlignment.center,
+    return PopScope(
+      canPop: !isMultiSelectEnabled,
+      onPopInvoked: (bool didPop) {
+        if (isMultiSelectEnabled) {
+          setState(() {
+            isMultiSelectEnabled = false;
+            selectedIndices.clear();
+          });
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: isMultiSelectEnabled
+              ? Text('${selectedIndices.length} selected')
+              : Padding(
+                  padding:
+                      const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Text(
+                              "Welcome back,",
+                              style: TextStyle(fontSize: 16),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              "${_userName[0].toUpperCase()}${_userName.substring(1)}!",
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      Container(
+                        decoration: BoxDecoration(
+                          shape:
+                              BoxShape.circle, // Ensure the border is circular
+                          border: Border.all(
+                            color: Color(0xFFDDDDDD),
+                            width: 1.0, // Border width
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          backgroundColor: Color(0xFFECFFF6),
+                          child: Text(
+                            _userName.substring(0, 2).toUpperCase(),
+                            style: TextStyle(
+                              color: Colors.green,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      )
+                    ],
+                  ),
+                ),
+          actions: isMultiSelectEnabled
+              ? [
+                  IconButton(
+                    icon: const Icon(Icons.share),
+                    onPressed: shareSelectedFiles,
+                  ),
+                  IconButton(
+                    icon: const Icon(Icons.delete),
+                    onPressed: deleteSelectedFiles,
+                  ),
+                ]
+              : null,
+        ),
+        body: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildDeviceList(
+                    title: "Paired Devices", devices: _pairedDevices),
+                SizedBox(height: 24),
+                _buildDeviceList(
+                    title: "Scanned Devices", devices: _scannedDevices),
+
+                const SizedBox(height: 14),
+                // Reports Section
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     const Text(
-                      "Welcome back,",
-                      style: TextStyle(fontSize: 16),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      "${_userName[0].toUpperCase()}${_userName.substring(1)}!",
-                      style: const TextStyle(
+                      'Reports',
+                      style: TextStyle(
                         fontSize: 20,
-                        fontWeight: FontWeight.bold,
+                        fontWeight: FontWeight.w500,
                       ),
-                      overflow: TextOverflow.ellipsis,
                     ),
+                    // TextButton(
+                    //   onPressed: _handleReportAction,
+                    //   style: TextButton.styleFrom(
+                    //     backgroundColor: Colors.transparent,
+                    //     padding: const EdgeInsets.all(0),
+                    //   ),
+                    //   child: const Text(
+                    //     'View all',
+                    //     style: TextStyle(
+                    //       fontSize: 16,
+                    //       color: Colors.black54,
+                    //       fontWeight: FontWeight.w400,
+                    //     ),
+                    //   ),
+                    // ),
                   ],
                 ),
-              ),
-              Container(
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle, // Ensure the border is circular
-                  border: Border.all(
-                    color: Color(0xFFDDDDDD),
-                    width: 1.0, // Border width
-                  ),
-                ),
-                child: CircleAvatar(
-                  backgroundColor: Color(0xFFECFFF6),
-                  child: Text(
-                    _userName.substring(0, 2).toUpperCase(),
-                    style: TextStyle(
-                      color: Colors.green,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              )
-            ],
-          ),
-        ),
-        automaticallyImplyLeading: false,
-      ),
-      body: SingleChildScrollView(
-        child: Padding(
-          padding: const EdgeInsets.all(16.0),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildDeviceList(
-                  title: "Paired Devices", devices: _pairedDevices),
-              SizedBox(height: 24),
-              _buildDeviceList(
-                  title: "Scanned Devices", devices: _scannedDevices),
-
-              const SizedBox(height: 14),
-              // Reports Section
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'Reports',
-                    style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  // TextButton(
-                  //   onPressed: _handleReportAction,
-                  //   style: TextButton.styleFrom(
-                  //     backgroundColor: Colors.transparent,
-                  //     padding: const EdgeInsets.all(0),
-                  //   ),
-                  //   child: const Text(
-                  //     'View all',
-                  //     style: TextStyle(
-                  //       fontSize: 16,
-                  //       color: Colors.black54,
-                  //       fontWeight: FontWeight.w400,
-                  //     ),
-                  //   ),
-                  // ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              // Sorting Buttons
-              SingleChildScrollView(
-                scrollDirection: Axis.horizontal,
-                child: Row(
-                  children: [
-                    // pending Button
-                    IntrinsicWidth(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          setState(() {
-                            activeFilter =
-                                'pending'; // Set filter to show pending files
-                          });
-                          fetchCatchFiles(); // Refresh the list
-                          print("pending button clicked!");
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: activeFilter == 'pending'
-                                ? Colors.green
-                                : Colors.grey.shade400,
-                          ),
-                          backgroundColor: activeFilter == 'pending'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.transparent,
-                        ),
-                        child: Text(
-                          'Pending',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w400,
-                            color: activeFilter == 'pending'
-                                ? Colors.green
-                                : Colors.black87,
-                          ),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    // Reports Button (PDF)
-
-                    const SizedBox(width: 8),
-                    // Duration Button
-                    IntrinsicWidth(
-                      child: OutlinedButton(
-                        onPressed: () {
-                          // _showDurationOptions(context);
-                          setState(() {
-                            selectedDurationDays = 7;
-                            selectedDuration = 'Last 7 days';
-                            activeFilter = 'duration';
-                          });
-                          fetchFiles();
-                          print("Duration button clicked!");
-                        },
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(
-                            color: activeFilter == 'duration'
-                                ? Colors.green
-                                : Colors.grey.shade400,
-                          ),
-                          backgroundColor: activeFilter == 'duration'
-                              ? Colors.green.withOpacity(0.1)
-                              : Colors.transparent,
-                        ),
-                        child: Text(
-                          'Recent',
-                          style: TextStyle(
-                            fontSize: 16,
-                            color: activeFilter == 'duration'
-                                ? Colors.green
-                                : Colors.black87,
-                            fontWeight: FontWeight.w400,
-                          ),
-                        ),
-                      ),
-                    ),
-                    if (selectedDuration !=
-                        null) // Display the selected duration
-                      Padding(
-                        padding: const EdgeInsets.only(left: 8),
-                        child: Text(
-                          selectedDuration!,
-                          style: TextStyle(
-                            fontSize: 14,
-                            color: Colors.grey.shade600,
-                          ),
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 10),
-              ListView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: files.length,
-                itemBuilder: (context, index) {
-                  final file = files[index];
-                  return Column(
+                const SizedBox(height: 14),
+                // Sorting Buttons
+                SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  child: Row(
                     children: [
-                      ListTile(
+                      // pending Button
+                      IntrinsicWidth(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            setState(() {
+                              activeFilter =
+                                  'pending'; // Set filter to show pending files
+                            });
+                            fetchCatchFiles(); // Refresh the list
+                            print("pending button clicked!");
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: activeFilter == 'pending'
+                                  ? Colors.green
+                                  : Colors.grey.shade400,
+                            ),
+                            backgroundColor: activeFilter == 'pending'
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.transparent,
+                          ),
+                          child: Text(
+                            'Pending',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w400,
+                              color: activeFilter == 'pending'
+                                  ? Colors.green
+                                  : Colors.black87,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      // Reports Button (PDF)
+
+                      const SizedBox(width: 8),
+                      // Duration Button
+                      IntrinsicWidth(
+                        child: OutlinedButton(
+                          onPressed: () {
+                            // _showDurationOptions(context);
+                            setState(() {
+                              selectedDurationDays = 7;
+                              selectedDuration = 'Last 7 days';
+                              activeFilter = 'duration';
+                            });
+                            fetchFiles();
+                            print("Duration button clicked!");
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: BorderSide(
+                              color: activeFilter == 'duration'
+                                  ? Colors.green
+                                  : Colors.grey.shade400,
+                            ),
+                            backgroundColor: activeFilter == 'duration'
+                                ? Colors.green.withOpacity(0.1)
+                                : Colors.transparent,
+                          ),
+                          child: Text(
+                            'Recent',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: activeFilter == 'duration'
+                                  ? Colors.green
+                                  : Colors.black87,
+                              fontWeight: FontWeight.w400,
+                            ),
+                          ),
+                        ),
+                      ),
+                      if (selectedDuration !=
+                          null) // Display the selected duration
+                        Padding(
+                          padding: const EdgeInsets.only(left: 8),
+                          child: Text(
+                            selectedDuration!,
+                            style: TextStyle(
+                              fontSize: 14,
+                              color: Colors.grey.shade600,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: files.length,
+                  itemBuilder: (context, index) {
+                    final file = files[index];
+                    final isSelected = selectedIndices.contains(index);
+
+                    // Only enable multi-select for recent files
+                    if (activeFilter == 'duration') {
+                      return GestureDetector(
+                        onLongPress: () => enableMultiSelect(index),
+                        onTap: () {
+                          if (isMultiSelectEnabled) {
+                            toggleSelection(index);
+                          } else {
+                            _openFile(file);
+                          }
+                        },
+                        child: Container(
+                          color: isSelected
+                              ? Colors.grey.shade300
+                              : Colors.transparent,
+                          child: Column(
+                            children: [
+                              ListTile(
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 0,
+                                  vertical: 0,
+                                ),
+                                leading: isMultiSelectEnabled
+                                    ? Checkbox(
+                                        value: isSelected,
+                                        onChanged: (value) {
+                                          toggleSelection(index);
+                                        },
+                                        shape: const CircleBorder(),
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.shrinkWrap,
+                                        visualDensity: VisualDensity.compact,
+                                      )
+                                    : SvgPicture.asset(
+                                        file.path.endsWith('.csv')
+                                            ? 'assets/svg/csv.svg'
+                                            : 'assets/svg/pdf.svg',
+                                        width: 40,
+                                        height: 40,
+                                      ),
+                                title: Text(
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  file.path.split('/').last,
+                                  style: const TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w400,
+                                  ),
+                                ),
+                                subtitle: Row(
+                                  children: [
+                                    Text(
+                                      formatDate(file.statSync().modified),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                    const SizedBox(width: 8),
+                                    Text(
+                                      formatFileSize(file.statSync().size),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: Colors.grey.shade600,
+                                        fontWeight: FontWeight.w400,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                                trailing: isMultiSelectEnabled
+                                    ? null
+                                    : Row(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          IconButton(
+                                            icon: Transform.rotate(
+                                              angle: pi / 2,
+                                              child: const Icon(
+                                                Icons.arrow_circle_right_sharp,
+                                                color: Colors.blue,
+                                              ),
+                                            ),
+                                            onPressed: () => _openFile(file),
+                                          ),
+                                          IconButton(
+                                            icon: const Icon(
+                                                Icons.cloud_done_rounded,
+                                                color: Colors.green),
+                                            onPressed: () {},
+                                          ),
+                                          PopupMenuButton<String>(
+                                            onSelected: (value) {
+                                              if (value == 'share') {
+                                                _shareFile(file as File);
+                                              } else if (value == 'delete') {
+                                                _deleteFile(
+                                                    file as File, index);
+                                              }
+                                            },
+                                            itemBuilder:
+                                                (BuildContext context) => [
+                                              const PopupMenuItem(
+                                                value: 'share',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.share,
+                                                        color: Colors.blue),
+                                                    SizedBox(width: 10),
+                                                    Text('Share'),
+                                                  ],
+                                                ),
+                                              ),
+                                              const PopupMenuItem(
+                                                value: 'delete',
+                                                child: Row(
+                                                  children: [
+                                                    Icon(Icons.delete,
+                                                        color:
+                                                            Color(0xFFb91c1c)),
+                                                    SizedBox(width: 10),
+                                                    Text('Delete'),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                              ),
+                              const Divider(),
+                            ],
+                          ),
+                        ),
+                      );
+                    } else {
+                      // For pending files, show the default UI
+                      return ListTile(
                         onTap: () => _openFile(file),
                         contentPadding: const EdgeInsets.symmetric(
                           horizontal: 0,
@@ -685,22 +885,16 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                         subtitle: Row(
                           children: [
                             Text(
-                              formatDate(file
-                                  .statSync()
-                                  .modified), // Display last modified date
+                              formatDate(file.statSync().modified),
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
                                 fontWeight: FontWeight.w400,
                               ),
                             ),
-                            const SizedBox(
-                                width:
-                                    8), // Add some spacing between the date and file size
+                            const SizedBox(width: 8),
                             Text(
-                              formatFileSize(file
-                                  .statSync()
-                                  .size), // Display formatted file size
+                              formatFileSize(file.statSync().size),
                               style: TextStyle(
                                 fontSize: 14,
                                 color: Colors.grey.shade600,
@@ -712,100 +906,76 @@ class _BluetoothDeviceManagerState extends State<BluetoothDeviceManager> {
                         trailing: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            activeFilter == "pending"
-                                ? SizedBox(
-                                    width: 40,
-                                    child: IconButton(
-                                      icon: const Icon(
-                                        Icons.arrow_circle_up_rounded,
-                                        color: Colors.blue,
-                                      ),
-                                      onPressed: () {
-                                        _uploadFileToCloud(file);
-                                      },
-                                    ),
-                                  )
-                                : SizedBox(
-                                    width: 40,
-                                    child: IconButton(
-                                      icon: Transform.rotate(
-                                        angle: pi /
-                                            2, // Rotate 90 degrees (pi/2 radians)
-                                        child: const Icon(
-                                          Icons.arrow_circle_right_sharp,
-                                          color: Colors.blue,
-                                        ),
-                                      ),
-                                      onPressed: () {
-                                        _openFile(file);
-                                      },
-                                    ),
-                                  ),
-                            activeFilter == "pending"
-                                ? SizedBox(
-                                    width: 35,
-                                    child: IconButton(
-                                      icon: Icon(Icons.cloud_off_rounded,
-                                          color: Colors.red),
-                                      onPressed: () {},
-                                    ),
-                                  )
-                                : SizedBox(
-                                    width: 35,
-                                    child: IconButton(
-                                      icon: Icon(Icons.cloud_done_rounded,
-                                          color: Colors.green),
-                                      onPressed: () {},
-                                    ),
-                                  ),
-                            activeFilter == "pending"
-                                ? SizedBox()
-                                : PopupMenuButton<String>(
-                                    onSelected: (value) {
-                                      if (value == 'share') {
-                                        _shareFile(file as File);
-                                      } else if (value == 'delete') {
-                                        _deleteFile(file as File, index);
-                                      }
-                                    },
-                                    itemBuilder: (BuildContext context) => [
-                                      const PopupMenuItem(
-                                        value: 'share',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.share,
-                                                color: Colors.blue),
-                                            SizedBox(width: 10),
-                                            Text('Share'),
-                                          ],
-                                        ),
-                                      ),
-                                      const PopupMenuItem(
-                                        value: 'delete',
-                                        child: Row(
-                                          children: [
-                                            Icon(Icons.delete,
-                                                color: Color(0xFFb91c1c)),
-                                            SizedBox(width: 10),
-                                            Text('Delete'),
-                                          ],
-                                        ),
-                                      ),
-                                    ],
-                                  ),
+                            SizedBox(
+                              width: 40,
+                              child: IconButton(
+                                icon: const Icon(
+                                  Icons.arrow_circle_up_rounded,
+                                  color: Colors.blue,
+                                ),
+                                onPressed: () {
+                                  _uploadFileToCloud(file);
+                                },
+                              ),
+                            ),
+                            SizedBox(
+                              width: 35,
+                              child: IconButton(
+                                icon: Icon(Icons.cloud_off_rounded,
+                                    color: Colors.red),
+                                onPressed: () {},
+                              ),
+                            )
                           ],
                         ),
-                      ),
-                      const Divider(),
-                    ],
-                  );
-                },
-              ),
-            ],
+                      );
+                    }
+                  },
+                ),
+              ],
+            ),
           ),
         ),
+        bottomNavigationBar: isMultiSelectEnabled
+            ? Container(
+                padding: const EdgeInsets.symmetric(vertical: 8.0),
+                decoration: BoxDecoration(
+                  border: Border(
+                    top: BorderSide(
+                      color: Colors.grey.shade300,
+                      width: 1.0,
+                    ),
+                  ),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: [
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          selectedIndices.clear();
+                          selectedIndices.addAll(
+                              List.generate(files.length, (index) => index));
+                        });
+                      },
+                      icon: const Icon(Icons.select_all),
+                      label: const Text('Select All'),
+                    ),
+                    TextButton.icon(
+                      onPressed: () {
+                        setState(() {
+                          isMultiSelectEnabled = false;
+                          selectedIndices.clear();
+                        });
+                      },
+                      icon: const Icon(Icons.cancel),
+                      label: const Text('Cancel'),
+                    ),
+                  ],
+                ),
+              )
+            : BottomNavBar(currentIndex: 0),
       ),
-      bottomNavigationBar: BottomNavBar(currentIndex: 0),
     );
   }
 

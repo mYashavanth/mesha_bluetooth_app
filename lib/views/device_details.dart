@@ -6,6 +6,7 @@ import 'dart:async';
 import 'package:flutter_blue_plus/flutter_blue_plus.dart';
 import 'dart:io';
 import 'package:csv/csv.dart';
+import 'package:mesha_bluetooth_data_retrieval/views/device_desconnection_page.dart';
 import 'package:mesha_bluetooth_data_retrieval/views/system_details.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:intl/intl.dart';
@@ -38,6 +39,10 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
   String activeFilter = 'pdf'; // Default filter
   final Set<int> selectedIndices = {}; // Track selected file indices
   bool isMultiSelectEnabled = false; // Track if multi-select mode is active
+
+  bool _isDeviceConnected = true;
+  StreamSubscription<BluetoothConnectionState>? _connectionSubscription;
+  bool _disconnectionDetected = false;
 
   @override
   void initState() {
@@ -161,10 +166,45 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
     }
   }
 
+  void _navigateToDisconnectionPage() {
+    if (mounted) {
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => DeviceDisconnectionPage(
+            deviceName: widget.device?.platformName ?? 'Mesha BT Device',
+            onRetry: () => connectToDevice(widget.device!),
+          ),
+        ),
+      );
+    }
+  }
+
   /// Connect to a Selected Device
   void connectToDevice(BluetoothDevice device) async {
-    await device.connect();
-    discoverServices();
+    // Subscribe to connection state changes before connecting
+    _connectionSubscription = device.connectionState.listen((state) {
+      setState(() {
+        _isDeviceConnected = (state == BluetoothConnectionState.connected);
+
+        if (!_isDeviceConnected && !isDataRetrievalComplete) {
+          _disconnectionDetected = true;
+          _navigateToDisconnectionPage();
+        }
+      });
+    });
+
+    try {
+      await device.connect(
+          autoConnect: false, timeout: const Duration(seconds: 15));
+      discoverServices();
+    } catch (e) {
+      setState(() {
+        _isDeviceConnected = false;
+        _disconnectionDetected = true;
+      });
+      _navigateToDisconnectionPage();
+    }
   }
 
   /// Discover Bluetooth Services
@@ -317,10 +357,23 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   /// Send *GET$ Command to Retrieve Data
   void retrieveData() async {
+    if (!_isDeviceConnected) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+              'Device is not connected. Please ensure it is powered on and in range.'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
     _retrievedData = "";
-    isDataRetrievalComplete = false; // Reset the flag
+    _disconnectionDetected = false;
+    isDataRetrievalComplete = false;
+
     sendData("*GET\$");
-    _showRetrievingDataDialog(); // Show the dialog
+    _showRetrievingDataDialog();
   }
 
   void _showRetrievingDataDialog() {
@@ -328,30 +381,58 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Retrieving Data'),
-          content: SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Center(
-                  child: Text(
-                    'Please wait while data is being retrieved...',
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-                SizedBox(height: 20),
-                Center(child: CircularProgressIndicator()),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Cancel'),
-              onPressed: () {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            // Periodically check connection status
+            Timer.periodic(const Duration(seconds: 1), (timer) {
+              if (!_isDeviceConnected || _disconnectionDetected) {
+                timer.cancel();
                 Navigator.of(context).pop();
-              },
-            ),
-          ],
+                _navigateToDisconnectionPage();
+              }
+            });
+
+            return AlertDialog(
+              title: const Text('Retrieving Data'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Text(
+                      'Please keep the device close during data transfer.'),
+                  const SizedBox(height: 20),
+                  Row(
+                    children: [
+                      Icon(
+                        _isDeviceConnected
+                            ? Icons.bluetooth_connected
+                            : Icons.bluetooth_disabled,
+                        color: _isDeviceConnected ? Colors.green : Colors.red,
+                      ),
+                      const SizedBox(width: 10),
+                      Text(
+                        _isDeviceConnected
+                            ? 'Device Connected'
+                            : 'Device Disconnected',
+                        style: TextStyle(
+                          color: _isDeviceConnected ? Colors.green : Colors.red,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                  const CircularProgressIndicator(),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  child: const Text('Cancel'),
+                  onPressed: () {
+                    Navigator.of(context).pop();
+                  },
+                ),
+              ],
+            );
+          },
         );
       },
     );
@@ -707,7 +788,8 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
 
   @override
   void dispose() {
-    _rxSubscription?.cancel(); // Cancel the subscription
+    _rxSubscription?.cancel();
+    _connectionSubscription?.cancel();
     super.dispose();
   }
 
@@ -747,6 +829,30 @@ class _DeviceDetailsPageState extends State<DeviceDetailsPage> {
                         fontWeight: FontWeight.w500,
                       ),
                     ),
+                    // Row(
+                    //   mainAxisSize: MainAxisSize.min,
+                    //   children: [
+                    //     Icon(
+                    //       _isDeviceConnected
+                    //           ? Icons.bluetooth_connected
+                    //           : Icons.bluetooth_disabled,
+                    //       color: _isDeviceConnected ? Colors.green : Colors.red,
+                    //       size: 12,
+                    //     ),
+                    //     const SizedBox(width: 5),
+                    //     Text(
+                    //       _isDeviceConnected
+                    //           ? 'Device Paired'
+                    //           : 'Device Disconnected',
+                    //       style: TextStyle(
+                    //         fontSize: 14,
+                    //         color:
+                    //             _isDeviceConnected ? Colors.green : Colors.red,
+                    //         fontWeight: FontWeight.w500,
+                    //       ),
+                    //     ),
+                    //   ],
+                    // ),
                   ],
                 ),
           actions: isMultiSelectEnabled
